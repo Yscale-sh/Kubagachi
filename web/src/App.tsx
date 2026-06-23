@@ -40,9 +40,12 @@ export default function App() {
       <TopBar />
       <TabsBar />
       <div className="flex flex-1 min-h-0 relative">
-        {!habitat && <Sidebar />}
+        {/* On the habitat home the sidebar is an overlay drawer (opened by the
+            TopBar nav toggle); on every other tab it's docked on desktop. */}
+        {habitat ? <Sidebar overlay /> : <Sidebar />}
 
-        {/* Mobile scrim — only visible while the sidebar is open on small screens */}
+        {/* Mobile scrim for the docked sidebar — the overlay sidebar renders
+            its own full-width scrim. */}
         {!habitat && sidebar.open && (
           <button
             type="button"

@@ -24,10 +24,12 @@ import {
   User,
 } from "lucide-react";
 import {
+  useActiveTab,
   useCluster,
   useContext,
   useNamespace,
   useSearch,
+  useTabs,
   workspaceActions,
 } from "../store/workspace";
 import { formatAge } from "../lib/format";
@@ -43,6 +45,11 @@ export default function TopBar() {
   const ctx = useContext();
   const ns = useNamespace();
   const search = useSearch();
+  const tabs = useTabs();
+  const activeTabId = useActiveTab();
+  // On the habitat home the resource Sidebar is an overlay (it isn't docked),
+  // so the nav toggle must be reachable on desktop too — not just mobile.
+  const habitat = tabs.find((t) => t.id === activeTabId)?.kind === "overview";
 
   const [searchFocused, setSearchFocused] = useState(false);
   const [ctxOpen, setCtxOpen] = useState(false);
@@ -95,8 +102,9 @@ export default function TopBar() {
         <button
           type="button"
           aria-label="Toggle navigation"
+          title="Resources (toggle sidebar)"
           onClick={workspaceActions.toggleSidebar}
-          className="md:hidden inline-flex items-center justify-center h-7 w-7 hover:bg-bg-panel2 text-text-muted hover:text-text transition-colors duration-100 k9s-square"
+          className={`${habitat ? "" : "md:hidden"} inline-flex items-center justify-center h-7 w-7 hover:bg-bg-panel2 text-text-muted hover:text-text transition-colors duration-100 k9s-square`}
         >
           <Menu size={15} />
         </button>

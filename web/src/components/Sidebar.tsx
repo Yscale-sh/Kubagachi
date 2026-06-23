@@ -149,7 +149,7 @@ const GROUPS: GroupEntry[] = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ overlay = false }: { overlay?: boolean }) {
   const { open, collapsed, groups } = useSidebarState();
   const cluster = useCluster();
   const tabs = useTabs();
@@ -178,25 +178,32 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile scrim — App.tsx may render its own, but having one here means
-          the sidebar still feels right when run in isolation. */}
+      {/* Scrim behind the drawer. In overlay mode (habitat home) it covers at
+          every width; docked mode only needs it on the mobile drawer. */}
       {open && (
         <div
           aria-hidden
           onClick={() => workspaceActions.toggleSidebar()}
-          className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm transition-opacity duration-150"
+          className={
+            (overlay ? "" : "md:hidden ") +
+            "fixed inset-0 z-30 bg-black/60 backdrop-blur-sm transition-opacity duration-150"
+          }
         />
       )}
 
       <aside
         className={
-          // base
-          "shrink-0 border-r border-border bg-bg-panel2 flex flex-col text-text-muted z-40 " +
-          // desktop sizing
-          (collapsed ? "md:w-14 " : "md:w-60 ") +
-          // mobile: off-canvas drawer
-          "fixed inset-y-0 left-0 w-60 transform transition-transform duration-150 md:static md:translate-x-0 " +
-          (open ? "translate-x-0 " : "-translate-x-full md:translate-x-0 ")
+          overlay
+            ? // Overlay drawer at every width — opened by the TopBar nav toggle
+              // on the habitat, where the sidebar isn't docked.
+              "shrink-0 border-r border-border bg-bg-panel2 flex flex-col text-text-muted z-40 " +
+              "fixed inset-y-0 left-0 w-60 transform transition-transform duration-150 " +
+              (open ? "translate-x-0" : "-translate-x-full")
+            : // Docked on desktop, off-canvas drawer on mobile.
+              "shrink-0 border-r border-border bg-bg-panel2 flex flex-col text-text-muted z-40 " +
+              (collapsed ? "md:w-14 " : "md:w-60 ") +
+              "fixed inset-y-0 left-0 w-60 transform transition-transform duration-150 md:static md:translate-x-0 " +
+              (open ? "translate-x-0 " : "-translate-x-full md:translate-x-0 ")
         }
       >
         {/* Scrollable group list */}
@@ -205,11 +212,12 @@ export default function Sidebar() {
             <SidebarGroup
               key={g.id}
               group={g}
-              collapsedSidebar={collapsed}
+              collapsedSidebar={overlay ? false : collapsed}
               groupCollapsed={!!groups[g.id]}
               cluster={cluster}
               openKinds={openKinds}
               activeKind={activeKind}
+              overlay={overlay}
             />
           ))}
         </div>
@@ -228,6 +236,7 @@ interface SidebarGroupProps {
   cluster: Cluster | null;
   openKinds: Set<TabKind>;
   activeKind: TabKind | undefined;
+  overlay: boolean;
 }
 
 function SidebarGroup({
@@ -237,6 +246,7 @@ function SidebarGroup({
   cluster,
   openKinds,
   activeKind,
+  overlay,
 }: SidebarGroupProps) {
   // When the sidebar is in icon-only mode we render the leaves directly
   // without a header — icons stack vertically.
@@ -251,6 +261,7 @@ function SidebarGroup({
             cluster={cluster}
             open={openKinds.has(leaf.kind)}
             active={activeKind === leaf.kind}
+            overlay={overlay}
           />
         ))}
       </div>
@@ -279,6 +290,7 @@ function SidebarGroup({
               cluster={cluster}
               open={openKinds.has(leaf.kind)}
               active={activeKind === leaf.kind}
+              overlay={overlay}
             />
           ))}
         </div>
@@ -293,9 +305,10 @@ interface SidebarLeafProps {
   cluster: Cluster | null;
   open: boolean;
   active: boolean;
+  overlay: boolean;
 }
 
-function SidebarLeaf({ leaf, collapsedSidebar, cluster, open, active }: SidebarLeafProps) {
+function SidebarLeaf({ leaf, collapsedSidebar, cluster, open, active, overlay }: SidebarLeafProps) {
   const Icon: LucideIcon = iconForKind(leaf.kind);
   const count =
     leaf.externalCount !== undefined
@@ -307,8 +320,9 @@ function SidebarLeaf({ leaf, collapsedSidebar, cluster, open, active }: SidebarL
 
   const onClick = () => {
     workspaceActions.openTab(leaf.kind);
-    // Close the mobile drawer on selection.
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
+    // Close the drawer on selection: always in overlay mode (habitat), and on
+    // the mobile off-canvas drawer.
+    if (overlay || (typeof window !== "undefined" && window.innerWidth < 768)) {
       workspaceActions.toggleSidebar();
     }
   };
