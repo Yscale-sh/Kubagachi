@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/jakenesler/kubagachi/internal/state"
@@ -192,6 +193,130 @@ func MapEvents(events []*corev1.Event) []state.EventView {
 		out = out[:maxEvents]
 	}
 	return out
+}
+
+// MapDeployment converts an apps/v1 Deployment into a normalized DeploymentView.
+func MapDeployment(d *appsv1.Deployment) state.DeploymentView {
+	dv := state.DeploymentView{
+		Name:      d.Name,
+		Namespace: d.Namespace,
+		Ready:     d.Status.ReadyReplicas,
+		Updated:   d.Status.UpdatedReplicas,
+		Available: d.Status.AvailableReplicas,
+		Age:       humanizeAge(d.CreationTimestamp.Time),
+	}
+	if d.Spec.Replicas != nil {
+		dv.Replicas = *d.Spec.Replicas
+	}
+	if !d.CreationTimestamp.IsZero() {
+		dv.AgeSeconds = int64(time.Since(d.CreationTimestamp.Time).Seconds())
+	}
+	if containers := d.Spec.Template.Spec.Containers; len(containers) > 0 {
+		dv.Image = containers[0].Image
+	}
+	if d.Spec.Selector != nil {
+		dv.Selector = renderSelector(d.Spec.Selector.MatchLabels)
+	}
+	return dv
+}
+
+// MapService converts a core/v1 Service into a normalized ServiceView.
+func MapService(s *corev1.Service) state.ServiceView {
+	sv := state.ServiceView{
+		Name:      s.Name,
+		Namespace: s.Namespace,
+		Type:      string(s.Spec.Type),
+		ClusterIP: s.Spec.ClusterIP,
+		Selector:  renderSelector(s.Spec.Selector),
+		Age:       humanizeAge(s.CreationTimestamp.Time),
+	}
+	if sv.Type == "" {
+		sv.Type = string(corev1.ServiceTypeClusterIP)
+	}
+	// A headless service (clusterIP None) is its own logical kind in the UI.
+	if s.Spec.ClusterIP == corev1.ClusterIPNone {
+		sv.Type = "Headless"
+	}
+	if !s.CreationTimestamp.IsZero() {
+		sv.AgeSeconds = int64(time.Since(s.CreationTimestamp.Time).Seconds())
+	}
+	sv.ExternalIP = serviceExternalIP(s)
+	for _, p := range s.Spec.Ports {
+		proto := string(p.Protocol)
+		if proto == "" {
+			proto = string(corev1.ProtocolTCP)
+		}
+		sv.Ports = append(sv.Ports, state.ServicePortView{
+			Name:       p.Name,
+			Port:       p.Port,
+			TargetPort: p.TargetPort.IntVal,
+			NodePort:   p.NodePort,
+			Protocol:   proto,
+		})
+	}
+	return sv
+}
+
+// serviceExternalIP resolves the first externally reachable address: an
+// explicit spec.externalIP, an ExternalName, or a load-balancer ingress entry.
+func serviceExternalIP(s *corev1.Service) string {
+	if len(s.Spec.ExternalIPs) > 0 {
+		return s.Spec.ExternalIPs[0]
+	}
+	if s.Spec.Type == corev1.ServiceTypeExternalName && s.Spec.ExternalName != "" {
+		return s.Spec.ExternalName
+	}
+	for _, ing := range s.Status.LoadBalancer.Ingress {
+		if ing.IP != "" {
+			return ing.IP
+		}
+		if ing.Hostname != "" {
+			return ing.Hostname
+		}
+	}
+	return ""
+}
+
+// MapConfigMap converts a core/v1 ConfigMap into a normalized ConfigMapView.
+func MapConfigMap(c *corev1.ConfigMap) state.ConfigMapView {
+	cv := state.ConfigMapView{
+		Name:      c.Name,
+		Namespace: c.Namespace,
+		Age:       humanizeAge(c.CreationTimestamp.Time),
+	}
+	if !c.CreationTimestamp.IsZero() {
+		cv.AgeSeconds = int64(time.Since(c.CreationTimestamp.Time).Seconds())
+	}
+	keys := make([]string, 0, len(c.Data)+len(c.BinaryData))
+	for k, v := range c.Data {
+		keys = append(keys, k)
+		cv.DataBytes += len(v)
+	}
+	for k, v := range c.BinaryData {
+		keys = append(keys, k)
+		cv.DataBytes += len(v)
+	}
+	sort.Strings(keys)
+	cv.Keys = keys
+	return cv
+}
+
+// renderSelector renders a label map as a stable "k=v,k=v" string with sorted
+// keys, so the UI sees a deterministic value across snapshots.
+func renderSelector(m map[string]string) string {
+	if len(m) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, k+"="+m[k])
+	}
+	return strings.Join(parts, ",")
 }
 
 func eventTime(e *corev1.Event) time.Time {

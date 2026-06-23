@@ -9,7 +9,7 @@
  * `filter` narrows the table to kustomizations / helmreleases / sources.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GitMerge, Pause, Play, RefreshCw, X } from "lucide-react";
 import type { FluxObject } from "../lib/types";
 import { fluxAction, type FluxActionKind } from "../lib/cluster-api";
@@ -19,7 +19,9 @@ import {
   useNamespace,
   useSearch,
   useSelectedRow,
+  workspaceActions,
 } from "../store/workspace";
+import ConfirmButton from "./ConfirmButton";
 
 export type FluxFilter = "all" | "kustomizations" | "helmreleases" | "sources";
 
@@ -43,9 +45,13 @@ export function matchesFluxFilter(f: FluxObject, filter: FluxFilter): boolean {
   }
 }
 
-interface Toast {
-  msg: string;
-  ok: boolean;
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el || !el.tagName) return false;
+  const tag = el.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (el.isContentEditable) return true;
+  return false;
 }
 
 export default function FluxTab({ filter = "all" }: { filter?: FluxFilter }) {
@@ -54,9 +60,7 @@ export default function FluxTab({ filter = "all" }: { filter?: FluxFilter }) {
   const search = useSearch();
   const selectedRow = useSelectedRow();
   const [detailUid, setDetailUid] = useState<string | null>(null);
-  const [toast, setToast] = useState<Toast | null>(null);
   const [pendingUid, setPendingUid] = useState<string | null>(null);
-  const toastTimer = useRef<number | null>(null);
 
   const objects = useMemo<FluxObject[]>(() => {
     if (!cluster) return [];
@@ -87,24 +91,47 @@ export default function FluxTab({ filter = "all" }: { filter?: FluxFilter }) {
     return () => clearRowNav(reg);
   }, [objects]);
 
-  const showToast = (msg: string, ok: boolean): void => {
-    setToast({ msg, ok });
-    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), 3200);
-  };
-
   const runAction = async (f: FluxObject, action: FluxActionKind): Promise<void> => {
     setPendingUid(f.uid);
     // Optimistic feedback first.
-    showToast(`${action} ${f.kind.toLowerCase()}/${f.name}…`, true);
+    workspaceActions.toast(`${action} ${f.kind.toLowerCase()}/${f.name}…`, "info");
     const res = await fluxAction(f.kind, f.namespace, f.name, action);
     setPendingUid(null);
     if (res.ok) {
-      showToast(`${action} requested for ${f.kind.toLowerCase()}/${f.name}`, true);
+      workspaceActions.toast(
+        `${action} requested for ${f.kind.toLowerCase()}/${f.name}`,
+        "success",
+      );
     } else {
-      showToast(`${action} failed: ${res.error ?? "unknown error"}`, false);
+      workspaceActions.toast(`${action} failed: ${res.error ?? "unknown error"}`, "error");
     }
   };
+
+  // Row-level keybindings (local listener; the global KeyboardLayer drives j/k/Enter).
+  //   r  reconcile the selected row
+  //   s  suspend/resume toggle the selected row
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.defaultPrevented) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      if (isTypingTarget(e.target)) return;
+      if (selectedRow < 0 || selectedRow >= objects.length) return;
+      const f = objects[selectedRow];
+      if (!f || pendingUid !== null) return;
+
+      if (e.key === "r") {
+        if (f.suspended) return; // reconcile is a no-op while suspended
+        e.preventDefault();
+        void runAction(f, "reconcile");
+      } else if (e.key === "s") {
+        e.preventDefault();
+        void runAction(f, f.suspended ? "resume" : "suspend");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objects, selectedRow, pendingUid]);
 
   if (!cluster) {
     return <div className="p-6 text-text-muted text-[12px]">loading cluster…</div>;
@@ -199,18 +226,6 @@ export default function FluxTab({ filter = "all" }: { filter?: FluxFilter }) {
         </tbody>
       </table>
 
-      {/* Toast */}
-      {toast && (
-        <div
-          className={
-            "fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-3 py-1.5 text-[12px] border bg-bg-panel shadow-lg shadow-black/50 k9s-square " +
-            (toast.ok ? "border-accent/50 text-text" : "border-status-error/60 text-status-error")
-          }
-        >
-          {toast.msg}
-        </div>
-      )}
-
       {/* Detail side panel */}
       {detail && (
         <FluxDetailPanel
@@ -271,6 +286,12 @@ function ReadyBadge({ obj }: { obj: FluxObject }) {
   );
 }
 
+const CHIP_BASE =
+  "inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] border transition-colors k9s-square ";
+const CHIP_IDLE = "border-border text-text-muted hover:text-accent hover:border-accent/50";
+const CHIP_DISABLED = "border-border/60 text-text-muted/50 cursor-default";
+const CHIP_ARMED = "border-accent text-accent bg-accent-dim";
+
 function RowActions({
   obj,
   pending,
@@ -280,6 +301,9 @@ function RowActions({
   pending: boolean;
   onAction: (a: FluxActionKind) => void;
 }) {
+  // suspend/resume is state-mutating → two-step confirm; reconcile stays one-click.
+  const toggle: FluxActionKind = obj.suspended ? "resume" : "suspend";
+  const toggleLabel = obj.suspended ? "resume" : "suspend";
   return (
     <span className="inline-flex items-center gap-1">
       <ActionChip
@@ -288,21 +312,20 @@ function RowActions({
         disabled={pending || obj.suspended}
         onClick={() => onAction("reconcile")}
       />
-      {obj.suspended ? (
-        <ActionChip
-          label="resume"
-          icon={<Play size={11} />}
-          disabled={pending}
-          onClick={() => onAction("resume")}
-        />
-      ) : (
-        <ActionChip
-          label="suspend"
-          icon={<Pause size={11} />}
-          disabled={pending}
-          onClick={() => onAction("suspend")}
-        />
-      )}
+      <ConfirmButton
+        onConfirm={() => onAction(toggle)}
+        title={`${toggleLabel} ${obj.kind.toLowerCase()}/${obj.name}`}
+        aria-label={`${toggleLabel} ${obj.name}`}
+        className={CHIP_BASE + (pending ? CHIP_DISABLED : CHIP_IDLE)}
+        armedClassName={CHIP_ARMED}
+        label={
+          <span className="inline-flex items-center gap-1">
+            {obj.suspended ? <Play size={11} /> : <Pause size={11} />}
+            {toggleLabel}
+          </span>
+        }
+        confirmLabel={<span className="inline-flex items-center gap-1">{toggleLabel}?</span>}
+      />
     </span>
   );
 }
@@ -326,12 +349,7 @@ function ActionChip({
         e.stopPropagation();
         onClick();
       }}
-      className={
-        "inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] border transition-colors k9s-square " +
-        (disabled
-          ? "border-border/60 text-text-muted/50 cursor-default"
-          : "border-border text-text-muted hover:text-accent hover:border-accent/50")
-      }
+      className={CHIP_BASE + (disabled ? CHIP_DISABLED : CHIP_IDLE)}
     >
       {icon}
       {label}
@@ -418,21 +436,23 @@ function FluxDetailPanel({
               disabled={pending || obj.suspended}
               onClick={() => onAction("reconcile")}
             />
-            {obj.suspended ? (
-              <PanelButton
-                label="resume"
-                icon={<Play size={12} />}
-                disabled={pending}
-                onClick={() => onAction("resume")}
-              />
-            ) : (
-              <PanelButton
-                label="suspend"
-                icon={<Pause size={12} />}
-                disabled={pending}
-                onClick={() => onAction("suspend")}
-              />
-            )}
+            <ConfirmButton
+              onConfirm={() => onAction(obj.suspended ? "resume" : "suspend")}
+              title={`${obj.suspended ? "resume" : "suspend"} ${obj.kind.toLowerCase()}/${obj.name}`}
+              className={PANEL_BASE + (pending ? PANEL_DISABLED : PANEL_IDLE)}
+              armedClassName={PANEL_ARMED}
+              label={
+                <span className="inline-flex items-center gap-1.5">
+                  {obj.suspended ? <Play size={12} /> : <Pause size={12} />}
+                  {obj.suspended ? "resume" : "suspend"}
+                </span>
+              }
+              confirmLabel={
+                <span className="inline-flex items-center gap-1.5">
+                  {obj.suspended ? "resume" : "suspend"}?
+                </span>
+              }
+            />
           </div>
         </div>
       </aside>
@@ -448,6 +468,12 @@ function Kv({ k, v }: { k: string; v: React.ReactNode }) {
     </div>
   );
 }
+
+const PANEL_BASE =
+  "inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] border transition-colors k9s-square ";
+const PANEL_IDLE = "border-accent/40 text-accent hover:bg-accent/10 hover:border-accent";
+const PANEL_DISABLED = "border-border/60 text-text-muted/50 cursor-default";
+const PANEL_ARMED = "border-accent text-accent bg-accent-dim";
 
 function PanelButton({
   label,
@@ -465,12 +491,7 @@ function PanelButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={
-        "inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] border transition-colors k9s-square " +
-        (disabled
-          ? "border-border/60 text-text-muted/50 cursor-default"
-          : "border-accent/40 text-accent hover:bg-accent/10 hover:border-accent")
-      }
+      className={PANEL_BASE + (disabled ? PANEL_DISABLED : PANEL_IDLE)}
     >
       {icon}
       {label}

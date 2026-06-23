@@ -24,6 +24,9 @@ type ClusterState struct {
 	Pods             []PodView
 	Events           []EventView
 	Flux             []FluxView
+	Deployments      []DeploymentView
+	Services         []ServiceView
+	ConfigMaps       []ConfigMapView
 	FluxInstalled    bool
 	MetricsInstalled bool
 	Summary          SummaryView
@@ -50,6 +53,25 @@ func (c *ClusterState) Rebuild() {
 			return c.Flux[i].Namespace < c.Flux[j].Namespace
 		}
 		return c.Flux[i].Name < c.Flux[j].Name
+	})
+
+	sort.Slice(c.Deployments, func(i, j int) bool {
+		if c.Deployments[i].Namespace != c.Deployments[j].Namespace {
+			return c.Deployments[i].Namespace < c.Deployments[j].Namespace
+		}
+		return c.Deployments[i].Name < c.Deployments[j].Name
+	})
+	sort.Slice(c.Services, func(i, j int) bool {
+		if c.Services[i].Namespace != c.Services[j].Namespace {
+			return c.Services[i].Namespace < c.Services[j].Namespace
+		}
+		return c.Services[i].Name < c.Services[j].Name
+	})
+	sort.Slice(c.ConfigMaps, func(i, j int) bool {
+		if c.ConfigMaps[i].Namespace != c.ConfigMaps[j].Namespace {
+			return c.ConfigMaps[i].Namespace < c.ConfigMaps[j].Namespace
+		}
+		return c.ConfigMaps[i].Name < c.ConfigMaps[j].Name
 	})
 
 	byNode := map[string][]PodView{}

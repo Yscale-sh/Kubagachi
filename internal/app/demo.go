@@ -160,8 +160,96 @@ func (s demoSource) build() state.ClusterState {
 	cs.Events = demoEvents()
 	cs.Flux = demoFlux()
 	cs.FluxInstalled = true
+
+	nsAllowed := func(ns string) bool {
+		return allNS || s.cfg.Namespace == "" || ns == s.cfg.Namespace
+	}
+	for _, d := range demoDeployments() {
+		if nsAllowed(d.Namespace) {
+			cs.Deployments = append(cs.Deployments, d)
+		}
+	}
+	for _, sv := range demoServices() {
+		if nsAllowed(sv.Namespace) {
+			cs.Services = append(cs.Services, sv)
+		}
+	}
+	for _, cm := range demoConfigMaps() {
+		if nsAllowed(cm.Namespace) {
+			cs.ConfigMaps = append(cs.ConfigMaps, cm)
+		}
+	}
+
 	cs.Rebuild()
 	return cs
+}
+
+// demoDeployments mirrors the demo pod owners so the Deployments tab reflects
+// the same workloads. api-gateway is degraded (2/3) since one replica crashloops.
+func demoDeployments() []state.DeploymentView {
+	mk := func(ns, name string, replicas, ready int32, image, selector string, ageMin int) state.DeploymentView {
+		return state.DeploymentView{
+			Name: name, Namespace: ns,
+			Replicas: replicas, Ready: ready, Updated: replicas, Available: ready,
+			Image: image, Selector: selector,
+			Age: demoAge(ageMin), AgeSeconds: int64(ageMin) * 60,
+		}
+	}
+	return []state.DeploymentView{
+		mk("default", "web-frontend", 3, 3, "ghcr.io/acme/web-frontend:1.8.2", "app=web-frontend", 320),
+		mk("default", "api-gateway", 3, 2, "ghcr.io/acme/api-gateway:2.1.0", "app=api-gateway", 1500),
+		mk("default", "payments", 2, 1, "ghcr.io/acme/payments:0.9.4", "app=payments", 12),
+		mk("default", "cache-redis", 2, 1, "redis:7.2-alpine", "app=cache-redis", 4300),
+		mk("default", "batch-report", 0, 0, "ghcr.io/acme/batch-report:3.0.1", "app=batch-report", 60),
+		mk("kube-system", "coredns", 2, 2, "registry.k8s.io/coredns/coredns:v1.11.1", "k8s-app=kube-dns", 5000),
+		mk("kube-system", "metrics-server", 1, 0, "registry.k8s.io/metrics-server/metrics-server:v0.7.1", "k8s-app=metrics-server", 18),
+		mk("monitoring", "grafana", 1, 1, "grafana/grafana:10.4.2", "app=grafana", 2600),
+		mk("monitoring", "prometheus", 1, 1, "prom/prometheus:v2.51.0", "app=prometheus", 2600),
+	}
+}
+
+// demoServices fakes a handful of services across namespaces, including a
+// LoadBalancer, a headless service and a UDP DNS service.
+func demoServices() []state.ServiceView {
+	return []state.ServiceView{
+		{Name: "web-frontend", Namespace: "default", Type: "ClusterIP", ClusterIP: "10.96.10.20",
+			Selector: "app=web-frontend", Age: demoAge(320), AgeSeconds: 320 * 60,
+			Ports: []state.ServicePortView{{Name: "http", Port: 80, TargetPort: 8080, Protocol: "TCP"}}},
+		{Name: "api-gateway", Namespace: "default", Type: "LoadBalancer", ClusterIP: "10.96.10.40", ExternalIP: "203.0.113.17",
+			Selector: "app=api-gateway", Age: demoAge(1500), AgeSeconds: 1500 * 60,
+			Ports: []state.ServicePortView{{Name: "https", Port: 443, TargetPort: 8443, NodePort: 31443, Protocol: "TCP"}}},
+		{Name: "cache-redis", Namespace: "default", Type: "Headless", ClusterIP: "None",
+			Selector: "app=cache-redis", Age: demoAge(4300), AgeSeconds: 4300 * 60,
+			Ports: []state.ServicePortView{{Name: "redis", Port: 6379, TargetPort: 6379, Protocol: "TCP"}}},
+		{Name: "kube-dns", Namespace: "kube-system", Type: "ClusterIP", ClusterIP: "10.96.0.10",
+			Selector: "k8s-app=kube-dns", Age: demoAge(5000), AgeSeconds: 5000 * 60,
+			Ports: []state.ServicePortView{
+				{Name: "dns", Port: 53, TargetPort: 53, Protocol: "UDP"},
+				{Name: "dns-tcp", Port: 53, TargetPort: 53, Protocol: "TCP"},
+			}},
+		{Name: "grafana", Namespace: "monitoring", Type: "ClusterIP", ClusterIP: "10.96.20.30",
+			Selector: "app=grafana", Age: demoAge(2600), AgeSeconds: 2600 * 60,
+			Ports: []state.ServicePortView{{Name: "http", Port: 3000, TargetPort: 3000, Protocol: "TCP"}}},
+		{Name: "prometheus", Namespace: "monitoring", Type: "NodePort", ClusterIP: "10.96.20.31",
+			Selector: "app=prometheus", Age: demoAge(2600), AgeSeconds: 2600 * 60,
+			Ports: []state.ServicePortView{{Name: "web", Port: 9090, TargetPort: 9090, NodePort: 30090, Protocol: "TCP"}}},
+	}
+}
+
+// demoConfigMaps fakes a few config maps so the ConfigMaps tab is explorable.
+func demoConfigMaps() []state.ConfigMapView {
+	return []state.ConfigMapView{
+		{Name: "app-config", Namespace: "default", Keys: []string{"app.yaml", "feature-flags.json", "log-level"},
+			DataBytes: 2148, Age: demoAge(320), AgeSeconds: 320 * 60},
+		{Name: "nginx-conf", Namespace: "default", Keys: []string{"default.conf", "nginx.conf"},
+			DataBytes: 1536, Age: demoAge(1500), AgeSeconds: 1500 * 60},
+		{Name: "coredns", Namespace: "kube-system", Keys: []string{"Corefile"},
+			DataBytes: 612, Age: demoAge(5000), AgeSeconds: 5000 * 60},
+		{Name: "kube-proxy", Namespace: "kube-system", Keys: []string{"config.conf", "kubeconfig.conf"},
+			DataBytes: 1890, Age: demoAge(5000), AgeSeconds: 5000 * 60},
+		{Name: "grafana-dashboards", Namespace: "monitoring", Keys: []string{"cluster.json", "nodes.json", "pods.json"},
+			DataBytes: 40960, Age: demoAge(2600), AgeSeconds: 2600 * 60},
+	}
 }
 
 // clampUsage keeps a usage value within [0, max].

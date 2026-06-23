@@ -89,6 +89,45 @@ type webFlux struct {
 	Age       string `json:"age"`
 }
 
+type webDeployment struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Replicas  int    `json:"replicas"`
+	Ready     int    `json:"ready"`
+	Updated   int    `json:"updated"`
+	Available int    `json:"available"`
+	Image     string `json:"image"`
+	Selector  string `json:"selector"`
+	AgeSec    int    `json:"ageSec"`
+}
+
+type webServicePort struct {
+	Name       string `json:"name"`
+	Port       int    `json:"port"`
+	TargetPort int    `json:"targetPort"`
+	NodePort   int    `json:"nodePort"`
+	Protocol   string `json:"protocol"`
+}
+
+type webService struct {
+	Name       string           `json:"name"`
+	Namespace  string           `json:"namespace"`
+	Type       string           `json:"type"`
+	ClusterIP  string           `json:"clusterIP"`
+	ExternalIP string           `json:"externalIP"`
+	Ports      []webServicePort `json:"ports"`
+	Selector   string           `json:"selector"`
+	AgeSec     int              `json:"ageSec"`
+}
+
+type webConfigMap struct {
+	Name      string   `json:"name"`
+	Namespace string   `json:"namespace"`
+	Keys      []string `json:"keys"`
+	DataBytes int      `json:"dataBytes"`
+	AgeSec    int      `json:"ageSec"`
+}
+
 type webSnapshot struct {
 	Mode             string     `json:"mode"` // "live" | "demo"
 	Context          string     `json:"context"`
@@ -98,8 +137,11 @@ type webSnapshot struct {
 	Pods             []webPod   `json:"pods"`
 	Nodes            []webNode  `json:"nodes"`
 	Namespaces       []string   `json:"namespaces"`
-	Events           []webEvent `json:"events"`
-	Flux             []webFlux  `json:"flux"`
+	Events           []webEvent      `json:"events"`
+	Flux             []webFlux       `json:"flux"`
+	Deployments      []webDeployment `json:"deployments"`
+	Services         []webService    `json:"services"`
+	ConfigMaps       []webConfigMap  `json:"configMaps"`
 }
 
 // webStatus maps kubagachi's normalized statuses onto the web UI vocabulary
@@ -127,6 +169,9 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 		Namespaces:       []string{},
 		Events:           []webEvent{},
 		Flux:             []webFlux{},
+		Deployments:      []webDeployment{},
+		Services:         []webService{},
+		ConfigMaps:       []webConfigMap{},
 	}
 	nsSeen := map[string]bool{}
 	for _, p := range cs.Pods {
@@ -191,6 +236,38 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 			Kind: f.Kind, Name: f.Name, Namespace: f.Namespace,
 			Ready: f.Ready, Suspended: f.Suspended, Revision: f.Revision,
 			Source: f.Source, Message: f.Message, Age: f.Age,
+		})
+	}
+	for _, d := range cs.Deployments {
+		snap.Deployments = append(snap.Deployments, webDeployment{
+			Name: d.Name, Namespace: d.Namespace,
+			Replicas: int(d.Replicas), Ready: int(d.Ready),
+			Updated: int(d.Updated), Available: int(d.Available),
+			Image: d.Image, Selector: d.Selector, AgeSec: int(d.AgeSeconds),
+		})
+	}
+	for _, s := range cs.Services {
+		ports := make([]webServicePort, 0, len(s.Ports))
+		for _, p := range s.Ports {
+			ports = append(ports, webServicePort{
+				Name: p.Name, Port: int(p.Port), TargetPort: int(p.TargetPort),
+				NodePort: int(p.NodePort), Protocol: p.Protocol,
+			})
+		}
+		snap.Services = append(snap.Services, webService{
+			Name: s.Name, Namespace: s.Namespace, Type: s.Type,
+			ClusterIP: s.ClusterIP, ExternalIP: s.ExternalIP,
+			Ports: ports, Selector: s.Selector, AgeSec: int(s.AgeSeconds),
+		})
+	}
+	for _, c := range cs.ConfigMaps {
+		keys := c.Keys
+		if keys == nil {
+			keys = []string{}
+		}
+		snap.ConfigMaps = append(snap.ConfigMaps, webConfigMap{
+			Name: c.Name, Namespace: c.Namespace,
+			Keys: keys, DataBytes: c.DataBytes, AgeSec: int(c.AgeSeconds),
 		})
 	}
 	return snap

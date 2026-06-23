@@ -17,6 +17,7 @@
 import { generateCluster, mutatePodStatus } from "./mock";
 import type {
   Cluster,
+  ConfigMap,
   ContainerSpec,
   Deployment,
   Event,
@@ -27,6 +28,9 @@ import type {
   Phase,
   Pod,
   PodStatus,
+  Service,
+  ServicePort,
+  ServiceType,
   WorkloadStatus,
 } from "./types";
 
@@ -103,6 +107,47 @@ interface ServerFlux {
   age?: string;
 }
 
+interface ServerDeployment {
+  name?: string;
+  namespace?: string;
+  replicas?: number;
+  ready?: number;
+  updated?: number;
+  available?: number;
+  image?: string;
+  /** "k=v,k=v" */
+  selector?: string;
+  ageSec?: number;
+}
+
+interface ServerServicePort {
+  name?: string;
+  port?: number;
+  targetPort?: number;
+  nodePort?: number;
+  protocol?: string;
+}
+
+interface ServerService {
+  name?: string;
+  namespace?: string;
+  type?: string;
+  clusterIP?: string;
+  externalIP?: string;
+  ports?: ServerServicePort[];
+  /** "k=v,k=v" */
+  selector?: string;
+  ageSec?: number;
+}
+
+interface ServerConfigMap {
+  name?: string;
+  namespace?: string;
+  keys?: string[];
+  dataBytes?: number;
+  ageSec?: number;
+}
+
 interface ServerSnapshot {
   mode?: string;
   context?: string;
@@ -114,6 +159,9 @@ interface ServerSnapshot {
   namespaces?: string[];
   events?: ServerEvent[];
   flux?: ServerFlux[];
+  deployments?: ServerDeployment[];
+  services?: ServerService[];
+  configMaps?: ServerConfigMap[];
 }
 
 // ---------------------------------------------------------------------------
@@ -364,6 +412,89 @@ function deriveDeployments(pods: Pod[]): Deployment[] {
   );
 }
 
+/** Parse a "k=v,k=v" selector string into a label map. */
+function parseSelector(s: string | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!s) return out;
+  for (const pair of s.split(",")) {
+    const i = pair.indexOf("=");
+    if (i === -1) continue;
+    const k = pair.slice(0, i).trim();
+    if (k) out[k] = pair.slice(i + 1).trim();
+  }
+  return out;
+}
+
+function toDeployment(d: ServerDeployment): Deployment {
+  const replicas = d.replicas ?? 0;
+  const ready = d.ready ?? 0;
+  const status: WorkloadStatus =
+    replicas > 0 && ready >= replicas ? "healthy" : ready === 0 ? "degraded" : "progressing";
+  const name = d.name ?? "deployment";
+  const namespace = d.namespace || undefined;
+  return {
+    kind: "Deployment",
+    uid: `deploy-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: d.ageSec ?? 0,
+    replicas,
+    readyReplicas: ready,
+    updatedReplicas: d.updated ?? ready,
+    availableReplicas: d.available ?? ready,
+    strategy: "RollingUpdate",
+    status,
+    selector: parseSelector(d.selector),
+    image: d.image ?? "—",
+  };
+}
+
+const SERVICE_TYPES: ReadonlySet<string> = new Set([
+  "ClusterIP",
+  "NodePort",
+  "LoadBalancer",
+  "ExternalName",
+  "Headless",
+]);
+
+function toService(s: ServerService): Service {
+  const name = s.name ?? "service";
+  const namespace = s.namespace || undefined;
+  const ports: ServicePort[] = (s.ports ?? []).map((p) => ({
+    name: p.name || undefined,
+    port: p.port ?? 0,
+    targetPort: p.targetPort ?? p.port ?? 0,
+    nodePort: p.nodePort || undefined,
+    protocol: p.protocol === "UDP" ? "UDP" : "TCP",
+  }));
+  return {
+    kind: "Service",
+    uid: `svc-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: s.ageSec ?? 0,
+    type: (SERVICE_TYPES.has(s.type ?? "") ? s.type : "ClusterIP") as ServiceType,
+    clusterIP: s.clusterIP ?? "—",
+    externalIP: s.externalIP || undefined,
+    ports,
+    selector: parseSelector(s.selector),
+  };
+}
+
+function toConfigMap(c: ServerConfigMap): ConfigMap {
+  const name = c.name ?? "configmap";
+  const namespace = c.namespace || undefined;
+  return {
+    kind: "ConfigMap",
+    uid: `cm-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: c.ageSec ?? 0,
+    dataKeys: c.keys ?? [],
+    sizeBytes: c.dataBytes ?? 0,
+  };
+}
+
 function snapshotToCluster(s: ServerSnapshot): Cluster {
   const pods = (s.pods ?? []).map(toPod);
   const mode =
@@ -379,19 +510,19 @@ function snapshotToCluster(s: ServerSnapshot): Cluster {
     flux: (s.flux ?? []).map(toFlux),
 
     pods,
-    deployments: deriveDeployments(pods),
+    deployments: s.deployments ? s.deployments.map(toDeployment) : deriveDeployments(pods),
     statefulSets: [],
     daemonSets: [],
     replicaSets: [],
     jobs: [],
     cronJobs: [],
 
-    services: [],
+    services: (s.services ?? []).map(toService),
     ingresses: [],
     endpoints: [],
     networkPolicies: [],
 
-    configMaps: [],
+    configMaps: (s.configMaps ?? []).map(toConfigMap),
     secrets: [],
     resourceQuotas: [],
     limitRanges: [],

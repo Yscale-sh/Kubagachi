@@ -103,6 +103,10 @@ function PaletteBody() {
 
   const clamped = Math.min(cursor, Math.max(0, commands.length - 1));
 
+  /** Group label for a command — drives the section headers in the list. */
+  const groupOf = (cmd: Command): string =>
+    cmd.name === "ns all" || cmd.name.startsWith("ns ") ? "NAMESPACE" : "NAVIGATE";
+
   const execute = (cmd: Command | undefined): void => {
     close();
     cmd?.run();
@@ -138,8 +142,11 @@ function PaletteBody() {
           className="pointer-events-auto w-full max-w-[520px] bg-bg-panel border border-border-strong shadow-2xl shadow-black/60 font-mono yscale-overlay-in k9s-square"
         >
           {/* Input row */}
-          <div className="flex items-center gap-2 px-3 h-10 border-b border-border">
-            <span className="text-accent text-[14px] select-none" aria-hidden="true">
+          <div className="flex items-center gap-2.5 px-3 h-12 border-b border-border-strong">
+            <span
+              className="text-accent text-[22px] leading-none font-bold select-none -mt-0.5"
+              aria-hidden="true"
+            >
               :
             </span>
             <input
@@ -155,7 +162,7 @@ function PaletteBody() {
               spellCheck={false}
               autoCapitalize="off"
               autoComplete="off"
-              className="flex-1 bg-transparent text-[13px] text-text placeholder:text-text-muted/60 outline-none caret-accent"
+              className="flex-1 bg-transparent text-[14px] text-text placeholder:text-text-muted/60 outline-none caret-accent"
             />
             <kbd className="text-[10px] text-text-muted/70 border border-border px-1 py-px k9s-square">
               esc
@@ -169,28 +176,55 @@ function PaletteBody() {
             )}
             {commands.map((c, i) => {
               const active = i === clamped;
+              const group = groupOf(c);
+              const showHeader = i === 0 || groupOf(commands[i - 1]) !== group;
               return (
-                <button
-                  key={c.name}
-                  type="button"
-                  onMouseEnter={() => setCursor(i)}
-                  onClick={() => execute(c)}
-                  className={
-                    "w-full flex items-center gap-2 px-3 py-1.5 text-left text-[12px] transition-colors duration-100 " +
-                    (active ? "bg-bg-panel2 text-text" : "text-text-muted hover:text-text")
-                  }
-                >
-                  <span
-                    aria-hidden="true"
-                    className={active ? "text-accent" : "text-transparent"}
+                <div key={c.name}>
+                  {showHeader && (
+                    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-[0.18em] text-text-muted/70 select-none">
+                      {group}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onMouseEnter={() => setCursor(i)}
+                    onClick={() => execute(c)}
+                    className={
+                      "w-full flex items-center gap-2 px-3 py-1.5 text-left text-[12px] border-l-2 transition-colors duration-100 " +
+                      (active
+                        ? "bg-accent-dim border-accent text-text"
+                        : "border-transparent text-text-muted hover:text-text")
+                    }
                   >
-                    ▍
-                  </span>
-                  <span className="flex-1">{c.name}</span>
-                  <span className="text-[10px] text-text-muted/70">{c.hint}</span>
-                </button>
+                    <span
+                      aria-hidden="true"
+                      className={active ? "text-accent" : "text-transparent"}
+                    >
+                      ▍
+                    </span>
+                    <span className={"flex-1" + (active ? " text-accent-bright" : "")}>
+                      {c.name}
+                    </span>
+                    <span className="text-[10px] text-text-muted/70">{c.hint}</span>
+                  </button>
+                </div>
               );
             })}
+          </div>
+
+          {/* Footer strip */}
+          <div className="flex items-center justify-between gap-2 px-3 h-7 border-t border-border-strong text-[10px] text-text-muted/70 select-none">
+            <span>
+              <span className="text-accent">{commands.length}</span>{" "}
+              {commands.length === 1 ? "result" : "results"}
+            </span>
+            <span className="flex items-center gap-1.5" aria-hidden="true">
+              <span>↑↓ move</span>
+              <span className="text-border-strong">·</span>
+              <span>↵ run</span>
+              <span className="text-border-strong">·</span>
+              <span>esc</span>
+            </span>
           </div>
         </div>
       </div>

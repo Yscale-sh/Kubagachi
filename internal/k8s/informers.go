@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	appslisters "k8s.io/client-go/listers/apps/v1"
 	listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
@@ -75,6 +76,9 @@ func (w *Watcher) Run(ctx context.Context, out chan<- state.ClusterState) error 
 	podInformer := factory.Core().V1().Pods()
 	nodeInformer := factory.Core().V1().Nodes()
 	eventInformer := factory.Core().V1().Events()
+	deploymentInformer := factory.Apps().V1().Deployments()
+	serviceInformer := factory.Core().V1().Services()
+	configMapInformer := factory.Core().V1().ConfigMaps()
 
 	var dirty atomic.Bool
 	dirty.Store(true)
@@ -86,6 +90,9 @@ func (w *Watcher) Run(ctx context.Context, out chan<- state.ClusterState) error 
 	_, _ = podInformer.Informer().AddEventHandler(markDirty)
 	_, _ = nodeInformer.Informer().AddEventHandler(markDirty)
 	_, _ = eventInformer.Informer().AddEventHandler(markDirty)
+	_, _ = deploymentInformer.Informer().AddEventHandler(markDirty)
+	_, _ = serviceInformer.Informer().AddEventHandler(markDirty)
+	_, _ = configMapInformer.Informer().AddEventHandler(markDirty)
 
 	factory.Start(ctx.Done())
 	for typ, ok := range factory.WaitForCacheSync(ctx.Done()) {
@@ -153,7 +160,10 @@ func (w *Watcher) Run(ctx context.Context, out chan<- state.ClusterState) error 
 	}
 
 	emit := func() {
-		snap := w.build(podInformer.Lister(), nodeInformer.Lister(), eventInformer.Lister())
+		snap := w.build(
+			podInformer.Lister(), nodeInformer.Lister(), eventInformer.Lister(),
+			deploymentInformer.Lister(), serviceInformer.Lister(), configMapInformer.Lister(),
+		)
 		snap.FluxInstalled = len(w.fluxResources) > 0
 		fluxMu.RLock()
 		snap.Flux = append([]state.FluxView(nil), fluxCache...)
@@ -200,7 +210,10 @@ func fluxEqual(a, b []state.FluxView) bool {
 	return true
 }
 
-func (w *Watcher) build(podL listers.PodLister, nodeL listers.NodeLister, eventL listers.EventLister) state.ClusterState {
+func (w *Watcher) build(
+	podL listers.PodLister, nodeL listers.NodeLister, eventL listers.EventLister,
+	deploymentL appslisters.DeploymentLister, serviceL listers.ServiceLister, configMapL listers.ConfigMapLister,
+) state.ClusterState {
 	snap := state.ClusterState{
 		ClusterName:   w.clusterName,
 		Namespace:     w.namespace,
@@ -217,6 +230,18 @@ func (w *Watcher) build(podL listers.PodLister, nodeL listers.NodeLister, eventL
 	}
 	events, _ := eventL.List(labels.Everything())
 	snap.Events = MapEvents(events)
+	deployments, _ := deploymentL.List(labels.Everything())
+	for _, d := range deployments {
+		snap.Deployments = append(snap.Deployments, MapDeployment(d))
+	}
+	services, _ := serviceL.List(labels.Everything())
+	for _, s := range services {
+		snap.Services = append(snap.Services, MapService(s))
+	}
+	configMaps, _ := configMapL.List(labels.Everything())
+	for _, c := range configMaps {
+		snap.ConfigMaps = append(snap.ConfigMaps, MapConfigMap(c))
+	}
 
 	// Merge the latest usage sample (under lock) before Rebuild copies pods
 	// into their node groups.
