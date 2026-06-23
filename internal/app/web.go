@@ -69,11 +69,12 @@ type webNode struct {
 }
 
 type webEvent struct {
-	Type    string `json:"type"`
-	Reason  string `json:"reason"`
-	Object  string `json:"object"`
-	Message string `json:"message"`
-	Time    string `json:"time"`
+	Type      string `json:"type"`
+	Reason    string `json:"reason"`
+	Object    string `json:"object"`
+	Namespace string `json:"namespace,omitempty"`
+	Message   string `json:"message"`
+	Time      string `json:"time"`
 }
 
 type webFlux struct {
@@ -177,11 +178,12 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 	}
 	for _, e := range cs.Events {
 		snap.Events = append(snap.Events, webEvent{
-			Type:    strings.ToLower(e.Type),
-			Reason:  e.Reason,
-			Object:  e.Object,
-			Message: e.Message,
-			Time:    e.Time,
+			Type:      strings.ToLower(e.Type),
+			Reason:    e.Reason,
+			Object:    e.Object,
+			Namespace: e.Namespace,
+			Message:   e.Message,
+			Time:      e.Time,
 		})
 	}
 	for _, f := range cs.Flux {

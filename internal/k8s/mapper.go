@@ -171,11 +171,12 @@ func MapEvents(events []*corev1.Event) []state.EventView {
 		when := eventTime(e)
 		tmp = append(tmp, stamped{
 			view: state.EventView{
-				Time:    humanizeAge(when),
-				Type:    e.Type,
-				Reason:  e.Reason,
-				Object:  e.InvolvedObject.Kind + "/" + e.InvolvedObject.Name,
-				Message: singleLine(e.Message),
+				Time:      humanizeAge(when),
+				Type:      e.Type,
+				Reason:    e.Reason,
+				Object:    e.InvolvedObject.Kind + "/" + e.InvolvedObject.Name,
+				Message:   singleLine(e.Message),
+				Namespace: eventNamespace(e),
 			},
 			when: when,
 		})
@@ -201,6 +202,16 @@ func eventTime(e *corev1.Event) time.Time {
 		return e.EventTime.Time
 	}
 	return e.FirstTimestamp.Time
+}
+
+// eventNamespace resolves the namespace the event belongs to: the involved
+// object's namespace is canonical; fall back to the Event resource's own
+// namespace. Both are empty for cluster-scoped objects (e.g. Node events).
+func eventNamespace(e *corev1.Event) string {
+	if ns := e.InvolvedObject.Namespace; ns != "" {
+		return ns
+	}
+	return e.Namespace
 }
 
 func humanizeAge(t time.Time) string {

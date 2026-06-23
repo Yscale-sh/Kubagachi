@@ -84,6 +84,8 @@ interface ServerEvent {
   reason?: string;
   /** "Kind/name" */
   object?: string;
+  /** Namespace of the involved object ("" / absent for cluster-scoped). */
+  namespace?: string;
   message?: string;
   /** Relative age like "12s", "3m", "2h" */
   time?: string;
@@ -282,6 +284,7 @@ function toEvent(e: ServerEvent, i: number): Event {
     kind: "Event",
     uid: `ev-${key.toString(16)}-${i}`,
     name: e.reason ?? "Event",
+    namespace: e.namespace || undefined,
     ageSec,
     type,
     reason: e.reason ?? "—",

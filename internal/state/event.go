@@ -8,4 +8,7 @@ type EventView struct {
 	Reason  string
 	Object  string
 	Message string
+	// Namespace of the involved object ("" for cluster-scoped objects). Lets
+	// the UI filter the event feed by the selected namespace.
+	Namespace string
 }

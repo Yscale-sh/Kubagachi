@@ -74,6 +74,7 @@ func (s demoSource) run(ctx context.Context, out chan<- state.ClusterState) {
 				Reason:  "Heartbeat",
 				Object:  "Cluster/demo",
 				Message: fmt.Sprintf("demo tick %d — critters are alive", iteration),
+				// Cluster-scoped: no namespace.
 			}}, snap.Events...)
 			snap.Rebuild()
 			if !send() {
@@ -329,13 +330,13 @@ func demoAge(min int) string {
 
 func demoEvents() []state.EventView {
 	return []state.EventView{
-		{Time: "12s", Type: "Warning", Reason: "BackOff", Object: "Pod/api-gateway-58f4-bb", Message: "Back-off restarting failed container"},
-		{Time: "30s", Type: "Warning", Reason: "Failed", Object: "Pod/payments-6b2d-aa", Message: "Failed to pull image: not found"},
-		{Time: "1m", Type: "Normal", Reason: "Scheduled", Object: "Pod/cache-redis-1", Message: "Successfully assigned default/cache-redis-1"},
-		{Time: "2m", Type: "Warning", Reason: "OOMKilling", Object: "Pod/loki-ingester-3", Message: "Memory cgroup out of memory: killed process"},
-		{Time: "3m", Type: "Normal", Reason: "Pulled", Object: "Pod/grafana-77c9-aa", Message: "Container image already present on machine"},
+		{Time: "12s", Type: "Warning", Reason: "BackOff", Object: "Pod/api-gateway-58f4-bb", Namespace: "default", Message: "Back-off restarting failed container"},
+		{Time: "30s", Type: "Warning", Reason: "Failed", Object: "Pod/payments-6b2d-aa", Namespace: "default", Message: "Failed to pull image: not found"},
+		{Time: "1m", Type: "Normal", Reason: "Scheduled", Object: "Pod/cache-redis-1", Namespace: "default", Message: "Successfully assigned default/cache-redis-1"},
+		{Time: "2m", Type: "Warning", Reason: "OOMKilling", Object: "Pod/metrics-server-aa", Namespace: "kube-system", Message: "Memory cgroup out of memory: killed process"},
+		{Time: "3m", Type: "Normal", Reason: "Pulled", Object: "Pod/coredns-5d78-aa", Namespace: "kube-system", Message: "Container image already present on machine"},
 		{Time: "4m", Type: "Warning", Reason: "NodeNotReady", Object: "Node/critter-node-c", Message: "Node critter-node-c status is now NotReady"},
-		{Time: "6m", Type: "Normal", Reason: "Completed", Object: "Pod/batch-report-30-x", Message: "Job completed successfully"},
-		{Time: "9m", Type: "Normal", Reason: "Killing", Object: "Pod/shop-checkout-9f-aa", Message: "Stopping container shop-checkout"},
+		{Time: "6m", Type: "Normal", Reason: "Completed", Object: "Pod/batch-report-30-x", Namespace: "default", Message: "Job completed successfully"},
+		{Time: "9m", Type: "Normal", Reason: "Killing", Object: "Pod/api-gateway-58f4-aa", Namespace: "default", Message: "Stopping container api-gateway"},
 	}
 }
