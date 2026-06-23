@@ -94,7 +94,12 @@ export interface WorkspaceState {
   selectedRowIndex: number;
   /** Transient action-feedback toasts. */
   toasts: Toast[];
+  /** Habitat render mode: dense node-box grid or calm "ranch" pasture (persisted). */
+  habitatView: HabitatView;
 }
+
+/** How the overview renders the habitat. */
+export type HabitatView = "grid" | "ranch";
 
 const STORAGE_KEY = "kubagachi:workspace:v1";
 const DEFAULT_CONTEXT = "mock-cluster";
@@ -111,6 +116,7 @@ interface PersistedShape {
   sidebarCollapsed?: boolean;
   sidebarGroups?: Record<string, boolean>;
   pinnedPodUids?: string[];
+  habitatView?: HabitatView;
 }
 
 function loadPersisted(): PersistedShape {
@@ -137,6 +143,9 @@ function loadPersisted(): PersistedShape {
         (x): x is string => typeof x === "string",
       );
     }
+    if (p.habitatView === "grid" || p.habitatView === "ranch") {
+      out.habitatView = p.habitatView;
+    }
     return out;
   } catch {
     return {};
@@ -152,6 +161,7 @@ function persist(state: WorkspaceState): void {
       sidebarCollapsed: state.sidebarCollapsed,
       sidebarGroups: state.sidebarGroups,
       pinnedPodUids: state.pinnedPodUids,
+      habitatView: state.habitatView,
     };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
@@ -247,6 +257,7 @@ function createStore() {
     helpOpen: false,
     selectedRowIndex: 0,
     toasts: [],
+    habitatView: persisted.habitatView ?? "grid",
   };
 
   const listeners = new Set<Listener>();
@@ -431,6 +442,17 @@ function createStore() {
     if (next !== state.selectedRowIndex) set({ selectedRowIndex: next });
   };
 
+  // ----- Habitat view (grid / ranch) -----
+
+  const setHabitatView = (v: HabitatView): void => {
+    if (v === state.habitatView) return;
+    set({ habitatView: v });
+  };
+
+  const toggleHabitatView = (): void => {
+    set({ habitatView: state.habitatView === "grid" ? "ranch" : "grid" });
+  };
+
   // ----- Toasts (action feedback) -----
 
   let toastSeq = 0;
@@ -473,6 +495,8 @@ function createStore() {
       setHelpOpen,
       setSelectedRow,
       moveSelectedRow,
+      setHabitatView,
+      toggleHabitatView,
       toast,
       dismissToast,
     },
@@ -556,6 +580,7 @@ export const usePaletteOpen = makeHook((s) => s.paletteOpen);
 export const useHelpOpen = makeHook((s) => s.helpOpen);
 export const useSelectedRow = makeHook((s) => s.selectedRowIndex);
 export const useToasts = makeHook((s) => s.toasts);
+export const useHabitatView = makeHook((s) => s.habitatView);
 
 // ---------------------------------------------------------------------------
 // Pinned-pet hook

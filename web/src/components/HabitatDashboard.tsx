@@ -20,6 +20,7 @@ import type { Cluster, Event as ClusterEvent, Node, Pod, PodStatus } from "../li
 import { formatAge, formatBytes, formatCPU, humanStatus } from "../lib/format";
 import {
   useCluster,
+  useHabitatView,
   useNamespace,
   useSearch,
   useSelectedRow,
@@ -28,6 +29,7 @@ import {
 import { registerRowNav, clearRowNav } from "../lib/row-nav";
 import { recordMetrics, nodeHistory, podHistory, sparkline } from "../lib/metrics-history";
 import CritterPlayer from "./CritterPlayer";
+import RanchView from "./RanchView";
 import StatusPill from "./StatusPill";
 
 // Vivid terminal status colors, matching the KUBE-TUI mockup.
@@ -78,6 +80,7 @@ export default function HabitatDashboard() {
   const namespace = useNamespace();
   const search = useSearch();
   const selectedRow = useSelectedRow();
+  const habitatView = useHabitatView();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // Flatten pods in node-grouped render order; this is the order the row
@@ -127,6 +130,25 @@ export default function HabitatDashboard() {
     registerRowNav(reg);
     return () => clearRowNav(reg);
   }, [flatPods]);
+
+  // 'v' toggles grid <-> ranch (mirrors the TUI habitat toggle). Ignore while
+  // typing in a field or when a modifier is held so it doesn't hijack shortcuts.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "v" && e.key !== "V") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t) {
+        const tag = t.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t.isContentEditable) {
+          return;
+        }
+      }
+      workspaceActions.toggleHabitatView();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Record one metrics sample per snapshot so the bars become rolling
   // sparklines of recent history.
@@ -189,28 +211,38 @@ export default function HabitatDashboard() {
         {mood?.tier === "critical" && (
           <div key={crisisKey} className="kubagachi-scanline" aria-hidden="true" />
         )}
+        <ViewToggle view={habitatView} />
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scrollbar-thin relative">
-          <svg
-            className="absolute top-0 left-0 w-full pointer-events-none z-0"
-            style={{ height: svgH }}
-            aria-hidden="true"
-          >
-            {traces.map((t, i) => (
-              <path
-                key={i}
-                d={t.d}
-                fill="none"
-                stroke={t.color}
-                strokeWidth={1.5}
-                strokeOpacity={0.6}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-            ))}
-          </svg>
+          {habitatView === "grid" && (
+            <svg
+              className="absolute top-0 left-0 w-full pointer-events-none z-0"
+              style={{ height: svgH }}
+              aria-hidden="true"
+            >
+              {traces.map((t, i) => (
+                <path
+                  key={i}
+                  d={t.d}
+                  fill="none"
+                  stroke={t.color}
+                  strokeWidth={1.5}
+                  strokeOpacity={0.6}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              ))}
+            </svg>
+          )}
           <div className="relative z-10 p-2 sm:p-3 flex flex-col gap-2.5">
             {flatPods.length === 0 ? (
               <EmptyHabitat search={search} namespace={namespace} />
+            ) : habitatView === "ranch" ? (
+              <RanchView
+                groups={groups}
+                activeUid={activePod?.uid ?? null}
+                activeOwner={activePod?.ownerName ?? null}
+                onSelectPod={selectPod}
+              />
             ) : (
               groups.map((g) => (
                 <NodeBox
@@ -237,6 +269,37 @@ export default function HabitatDashboard() {
           onClose={() => setSheetOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+// ViewToggle — compact segmented control (grid | ranch) pinned to the top-right
+// of the center column. Gold marks the active mode; 'v' toggles it too.
+function ViewToggle({ view }: { view: "grid" | "ranch" }) {
+  const opts: ReadonlyArray<["grid" | "ranch", string]> = [
+    ["grid", "grid"],
+    ["ranch", "ranch"],
+  ];
+  return (
+    <div className="absolute top-2 right-2 z-30 flex items-stretch border border-border-strong bg-bg-panel/85 backdrop-blur-[1px] k9s-square font-mono text-[10px]">
+      {opts.map(([v, label], i) => {
+        const on = view === v;
+        return (
+          <button
+            key={v}
+            type="button"
+            onClick={() => workspaceActions.setHabitatView(v)}
+            aria-pressed={on}
+            title={`${label} view  ·  press v to toggle`}
+            className={`px-2.5 py-1 uppercase tracking-[0.16em] transition-colors ${
+              i > 0 ? "border-l border-border" : ""
+            } ${on ? "text-bg-base font-medium" : "text-text-muted hover:text-text"}`}
+            style={on ? { backgroundColor: "#c9b88a" } : undefined}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
