@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go get *)",
+      "Bash(go doc *)",
+      "Bash(go mod *)",
+      "Bash(go build *)",
+      "Bash(go vet *)",
+      "Bash(go run *)",
+      "WebSearch",
+      "Bash(curl -s http://localhost:8088/api/critters)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('states:',d['states']\\); [print\\(f\\\\\"  {c['name']:18} keyed={'Y' if c.get\\('keyed_url'\\) else 'n'} anim={len\\(c.get\\('anim',{}\\)\\)} tiles={len\\(c.get\\('tiles',{}\\)\\)}\\\\\"\\) for c in d['critters']]\")",
+      "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --hide-scrollbars --window-size=1600,1200 --screenshot=/tmp/critterview.png http://localhost:8088/viewer/)",
+      "Bash(kill %1)",
+      "Bash(pkill -f \"/tmp/critterview\")",
+      "Bash(/tmp/critterview --addr :8088 --root .)",
+      "Bash(lsof -ti:8080)",
+      "Bash(xargs -r kill)",
+      "Bash(nohup /tmp/critterview --addr :8080 --root .)",
+      "Bash(curl -sI http://localhost:8080/)",
+      "Bash(curl -s http://localhost:8080/api/critters)",
+      "Bash(python3 -c ' *)",
+      "Bash(nohup /tmp/critterview --addr :8080 --root /Users/jakenesler/Documents/Programming/kubagachi)",
+      "Bash(curl -s 'http://localhost:8080/api/latest?limit=8')",
+      "Bash(npm --version)",
+      "Bash(npm run *)"
+    ]
+  }
+}

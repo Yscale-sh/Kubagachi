@@ -1,0 +1,480 @@
+{
+  "version": 1,
+  "model": "openai:gpt-image-1.5:1024x1024:low",
+  "prompt_version": "v3",
+  "generated_at": "2026-06-13T18:48:08.906391Z",
+  "critters": {
+    "api-gateway": {
+      "description": "a sleek white cat with subtle pink details, small whiskers, gentle expression",
+      "sheet": "api-gateway/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "api-gateway/backoff.png",
+          "sha256": "f25d8399bec8e158a3c967af36788bab0f24db5d3604c51d2be22aea2eab4112",
+          "cache_key": "85382e986aa6bfe0bd929986d3146fad88505500a2b628e5f82300d62e2eff20"
+        },
+        "completed": {
+          "path": "api-gateway/completed.png",
+          "sha256": "7e6933b1cabb27e0b7f576c064f422240cba1b6e2ddacd36a032e45160552896",
+          "cache_key": "2bf76debb742a92542f40cda7594f9356d4b6a4b9ba880153c8287ac80736690"
+        },
+        "crashloop": {
+          "path": "api-gateway/crashloop.png",
+          "sha256": "a1bab4e46ca77338cf38ce4637cbfc0509cc2aa9c4403ef96e09ac86ed0e02d7",
+          "cache_key": "789ab6e64f16067e232996ff29620b3cad34a44d4741617391fcbbd8e600e831"
+        },
+        "pending": {
+          "path": "api-gateway/pending.png",
+          "sha256": "d9148d11066bf26d1c52d344876cd5347f8c70b8d12f7cb36552cdddb5677b52",
+          "cache_key": "0c046fe0b51fc99c81a3e54b9b7738e9e118295be871e9a4328aee8de2284380"
+        },
+        "running": {
+          "path": "api-gateway/running.png",
+          "sha256": "764527db5758d0a89aae75fd67a695b08cd27b16cb719e40a3821411b3d84120",
+          "cache_key": "14d523c479b957bde132017b715730d0d1f3acf8fe9da2b3e33b840483ece370"
+        },
+        "terminating": {
+          "path": "api-gateway/terminating.png",
+          "sha256": "6ea4ee483082c79f005c664b3c25ab48496983c21a23254667d3ca2f9fed95ad",
+          "cache_key": "6958b64df708cc5f15cf9d24b390b7f29fe793934593bc4d10d8b7b1ad9620b6"
+        },
+        "unknown": {
+          "path": "api-gateway/unknown.png",
+          "sha256": "9f26edd1f401b18de17a86388b3ed3c42546f7cb77c82ed9ae5e431ddda450a2",
+          "cache_key": "2f5670b5759e84203bd2d7b9d5bb3d927647f8bbe7c46cf18a4f33723b1ed9e8"
+        }
+      }
+    },
+    "cache": {
+      "description": "calm green turtle cache mascot",
+      "sheet": "cache/sprite-sheet-keyed.png",
+      "states": {}
+    },
+    "cartogopher": {
+      "description": "a teal-blue Go gopher dressed as a cartographer pirate, wearing a navy tricorn pirate hat with gold trim, a gold sash across the chest, holding a brass sextant in one hand and an unrolled treasure map scroll marked with a compass rose in the other, with a small brass spyglass at its side",
+      "instructions": "always keep the navy tricorn pirate hat with gold trim, the brass sextant, and the treasure-map scroll recognizable in every state; keep the teal gopher body and big round eyes",
+      "sheet": "cartogopher/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "cartogopher/backoff.png",
+          "sha256": "9f9127dee7e53c1412bbee6210cfd099c56b44022f60c5e04c1c6c6666f2a36c",
+          "cache_key": "f14984936312d8b26e7ae042074e8ad1450eb84beb5ee7b0d37d9474b824bed0"
+        },
+        "completed": {
+          "path": "cartogopher/completed.png",
+          "sha256": "311186f1b2edd872e7c32e981ace9be2d6558f50711fb7cd6f91af48522a90c7",
+          "cache_key": "f25b7545428f6a4803f9619b46c7b7bc5fe888278e76dc1ac601c9893299acff"
+        },
+        "crashloop": {
+          "path": "cartogopher/crashloop.png",
+          "sha256": "8f95d85eeadf572f5743c93b1dbbaf8a0db5e8fbd0114ec7c5aecbc26d711ec6",
+          "cache_key": "79ed2c5f85776bf4db6f540881bc358d12107d7813476ec8b0ff1293b6a250a1"
+        },
+        "pending": {
+          "path": "cartogopher/pending.png",
+          "sha256": "71b8cacd103527c0868c934255b5dc9b007299f4bfa8287cb289421b7188a7cf",
+          "cache_key": "3cc2439cd3e1c6837530c79bdf80ea977870c2f611883b1d2e11ac4d8b355f29"
+        },
+        "running": {
+          "path": "cartogopher/running.png",
+          "sha256": "ce165a1fa85d67a7e8dd457ea84aed13721e35d5583ce3d887b92714e0937933",
+          "cache_key": "0215cec7a013a2f0472a759e185abcb2e228362bc124621bfdc199cf4c8da938"
+        },
+        "terminating": {
+          "path": "cartogopher/terminating.png",
+          "sha256": "799ec4d80d884f7e3118bd41b39805a768a8348d0ace824b543b52cf40cd2a23",
+          "cache_key": "e8b9927344e7dfee62b2645024cd3544ccfa1494c804608a3028a97399854a3f"
+        },
+        "unknown": {
+          "path": "cartogopher/unknown.png",
+          "sha256": "3078fbfbe78895d42dec8e8519e0a20f5c07c9ae6241c2013fd69ef85c17e704",
+          "cache_key": "663967e7c60130a8d276e366d8de3955d9eb12efa235f0d982faf9e4ba6d44c2"
+        }
+      }
+    },
+    "claude-code": {
+      "description": "a cream-colored cat sitting upright holding a tiny rectangular sign that clearly reads \"AI\"",
+      "instructions": "keep the \"AI\" sign visible and legible in every state variant",
+      "sheet": "claude-code/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "claude-code/backoff.png",
+          "sha256": "35798b0df3fe6fd29d8ff041843877ca41c8fb38d622c868d9fec391d5519032",
+          "cache_key": "ce1b3b11165fa07461e9dd0b51d08021de00190038159a111d8a08519689f252"
+        },
+        "completed": {
+          "path": "claude-code/completed.png",
+          "sha256": "fbbbcd591bdbbe135ffa64edc113ed5ae7e3610fa19b5dbd2e0844566ca56f49",
+          "cache_key": "8be592e26a218ec14e3c1736b9b45dd2daa8921ebe60923924e564b145fdd51e"
+        },
+        "crashloop": {
+          "path": "claude-code/crashloop.png",
+          "sha256": "ffb22610fb32ed7dbad1598f956a887e764d7a6d6759eebb86e3da0955d48aac",
+          "cache_key": "2c892e612c3c8bcaac15e023fe32ce8e2b9de5bfb0c5681b08ff777955a2b701"
+        },
+        "pending": {
+          "path": "claude-code/pending.png",
+          "sha256": "7c28cb5d26a78fadbfa026e7e34f876202e338775388031f044eba21c506e7ba",
+          "cache_key": "bbef5c0d07ba2b896eff03d1484262535a89c2af821e120b7099030d014583e9"
+        },
+        "running": {
+          "path": "claude-code/running.png",
+          "sha256": "0e19fead9a491a6c22a869eeab83fe59ed35b73fec0b465ae7d5909f147ebddf",
+          "cache_key": "a1e6921711601efb89ea3feb947e9e5df1fc7d8a8bb608e054e4d303091607ad"
+        },
+        "terminating": {
+          "path": "claude-code/terminating.png",
+          "sha256": "44306369c27cbb011a6943da43469ae616320d1090df652e939216303ee22c82",
+          "cache_key": "c13bee6f93c75b0061536fce2062dfcb8d8a805154256405c28abdcda7106427"
+        },
+        "unknown": {
+          "path": "claude-code/unknown.png",
+          "sha256": "24b7d649c8ee1777b0f20cc3435f93530115fd385e42e3915cd1074968d9e11e",
+          "cache_key": "46396e76c20da5dd76b54bd28e5e515dfad3a597d969a5eeefd89e423ef9f688"
+        }
+      }
+    },
+    "email-sender": {
+      "description": "small pink expressive email sender monster",
+      "sheet": "email-sender/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "email-sender/backoff.png",
+          "sha256": "4c254e1374d5173fd47eb225ceca5851921b800a8b74a6f09dca5415f78edc58",
+          "cache_key": "da1a302ee1e879ec420eaaebbca56d914a2381c2984718e7e6d543d660021f41"
+        },
+        "completed": {
+          "path": "email-sender/completed.png",
+          "sha256": "21e8ab1b0949e88d6e8ed9e2ab54b30612000975e225028d72862f6187832135",
+          "cache_key": "d217e4d046b6eaacfda98568f32eb2064737bb56fde4df459d915e107380638b"
+        },
+        "crashloop": {
+          "path": "email-sender/crashloop.png",
+          "sha256": "9ef30b0914ababed6863a3aa647b03fa97ab5cfa3b626ab079ce25d58306df04",
+          "cache_key": "191357314c3c76eaa5ab85108fefc8be2e86eb10196e1010a976d7f8260cb2db"
+        },
+        "pending": {
+          "path": "email-sender/pending.png",
+          "sha256": "e5239a335416d2994d9cc649a0a2ec7e73b0b5b421fcf777279deb953de25d89",
+          "cache_key": "5d9ff694aa88bfad067adfd05ce938e61117c223c715e105a5f8bde0688ec347"
+        },
+        "running": {
+          "path": "email-sender/running.png",
+          "sha256": "9c43199db0870816c2b180b740da71a6fe7d071e2adc6f5f428e92d30c1d00c5",
+          "cache_key": "d10cd60aeae64b3e72ef1d2f2cff2c416044ecb8f87df86cb938073622275b36"
+        },
+        "terminating": {
+          "path": "email-sender/terminating.png",
+          "sha256": "1350053940b50084164147da93a6bafe30793e1d3060e0fc521cd7431ea68c09",
+          "cache_key": "20168c4ff21d502d078d5e1e850dce779d29f33275d7ac3f7443ab877dda3e03"
+        },
+        "unknown": {
+          "path": "email-sender/unknown.png",
+          "sha256": "32dd23578bdb1095503701d703105d808e12e06c6576c00677308729c4524886",
+          "cache_key": "493f9da2bf853625c238f59e03eb6ae1a4499aa86706303d2da7439fb6822ee3"
+        }
+      }
+    },
+    "frontend": {
+      "description": "polished orange fox frontend mascot",
+      "sheet": "frontend/sprite-sheet-keyed.png",
+      "states": {}
+    },
+    "job-processor": {
+      "description": "round yellow chick job queue mascot",
+      "sheet": "job-processor/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "job-processor/backoff.png",
+          "sha256": "410a73b96370b4affd6a0c121a1558648517934f80e16f5edcd45d7246fa46d6",
+          "cache_key": "1a04d1c4f7215e3c1771efce1fcd2c1b0619964a90cd08f4a13cea414e7ab03c"
+        },
+        "completed": {
+          "path": "job-processor/completed.png",
+          "sha256": "6b8ea2ad40e3585eb3cb5ef73403dbdce0218756df4d0797ceadef81b23205e9",
+          "cache_key": "17ad5107ed0aec2a84f2a37c4b7e0576f4c8a0812ffb28c8e826eff6d3f1e1c0"
+        },
+        "crashloop": {
+          "path": "job-processor/crashloop.png",
+          "sha256": "bbbdf24dfabc093ce4c8f0b17bdfdce58a76381831303e54674e764721f3456f",
+          "cache_key": "5fa617fb1a917def06ea4f352436b5081e7db7dcaed7a43b0e22dc0df6275537"
+        },
+        "pending": {
+          "path": "job-processor/pending.png",
+          "sha256": "9e0c06ab06fe4a62f2246f5da51e1974a3f95225cfb2d566468af3484bc2b868",
+          "cache_key": "900ad9e8621d215a9e4bb6168d1ab34ba17a68b7c65647946eb3a7ef8a14b3a2"
+        },
+        "running": {
+          "path": "job-processor/running.png",
+          "sha256": "d9eb218f9994a72492e47a835ff9bd451f03038639cdc09605e6322e6ed20a2c",
+          "cache_key": "798e4370c7861f74961b400245f91df986acc9a5e5b9ddd151f3ca25a6654379"
+        },
+        "terminating": {
+          "path": "job-processor/terminating.png",
+          "sha256": "d2fad46ecc7faa2b80e86146469a9b3e977ab5bfcb74a1fee9ed2f5e3e9d3c1d",
+          "cache_key": "0927bbe0098a581478d9730552e0ddb7ebb0c884713f9d0cf995873c232e6005"
+        },
+        "unknown": {
+          "path": "job-processor/unknown.png",
+          "sha256": "eb68bd92dae275ed81857b84dd3515bee73eb36998420eaa12387cc63f1ffc6d",
+          "cache_key": "39a6776d3f840b451ba0516675485eeb196cf977ec66c0db459da015ddeb1375"
+        }
+      }
+    },
+    "nori": {
+      "sheet": "nori/sprite-sheet-keyed.png",
+      "states": {}
+    },
+    "payment-service": {
+      "description": "small brown payment guard dog with cream muzzle",
+      "sheet": "payment-service/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "payment-service/backoff.png",
+          "sha256": "1bec496b018889f4e1a0e26b4b62af7d93111e9b14783a75ec1ee9f8de6f9560",
+          "cache_key": "5c309614f93d41c7296cd9829d5ee6622ab3dead9f264a9b712f5c2b881ba608"
+        },
+        "completed": {
+          "path": "payment-service/completed.png",
+          "sha256": "e7c5050239c9a20bae8d79a395f75460b4a5d0dace2126639a98cb525fcbed37",
+          "cache_key": "95d4d74c4aa2d49ea152759a0e93ef245ef3e85c56195251d35c41aaa5cc2f6e"
+        },
+        "crashloop": {
+          "path": "payment-service/crashloop.png",
+          "sha256": "040d1cd33f9bee4b3819ccab1b0bf0503b48e6071cbd85cb8c30daa981ae7fac",
+          "cache_key": "60f8cb925d29f576e1a89b69f421637cf41ea9db0f5ee2c6e942455319ffeecf"
+        },
+        "pending": {
+          "path": "payment-service/pending.png",
+          "sha256": "2a6f74b42ad65e3c417020762282df0c5f14810d2f1881723c9a79de5921cdb0",
+          "cache_key": "18cce0e2c34e68d45b966ce390daaf63f034bc04ae48f022870a17a2b870ed60"
+        },
+        "running": {
+          "path": "payment-service/running.png",
+          "sha256": "2a863fb2746a62ad08a00bc7f87c95b5d37523a8ed41cdf6c5e0d8b8c4ab6334",
+          "cache_key": "6df4e487830832094b61311b8272c4044ca2b0aab413624f4e51cfce5ee51aca"
+        },
+        "terminating": {
+          "path": "payment-service/terminating.png",
+          "sha256": "7130ca0bb08284ecbbce80084d4808f8a5ea01030f00b70506e54026dc406e6d",
+          "cache_key": "11d167cd28b7d7704d5ebc6236bacbdfdfcfeb2aa2a593784754e1390b4cf30a"
+        },
+        "unknown": {
+          "path": "payment-service/unknown.png",
+          "sha256": "999f6bbbc2482244a68ab0ac1d51b6b301ab8060523fd40d3fc66b72055e2f7a",
+          "cache_key": "034c30aba9545d6d079fb1a8b74436e0187a9d20143937256723ea5bd77ef01e"
+        }
+      }
+    },
+    "postgres": {
+      "description": "a chubby blue elephant with big ears and a small trunk curled upward",
+      "sheet": "postgres/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "postgres/backoff.png",
+          "sha256": "1258226385565c440e13011502c5102bfe959a594d59621cabb5891a5bb4542e",
+          "cache_key": "954861dba95be74a36580fdb7515a1b4169c922d34bdf143f3670fd4038af8d7"
+        },
+        "completed": {
+          "path": "postgres/completed.png",
+          "sha256": "d43ef29391773971a602057c4467296c907f0439a40fa29b909d2337b3b705c1",
+          "cache_key": "e15f06346ea3f75e59b3a8f15cde553cd14199d872f0d83b29e724991b3539ae"
+        },
+        "crashloop": {
+          "path": "postgres/crashloop.png",
+          "sha256": "8f95bec9de7552d4143d5b040f9adfc055eadc1f46440c25665643e415bab165",
+          "cache_key": "05bc34606d31e193be514a0ad3e0ee713db1f3905554f4c5185e19be3cd93403"
+        },
+        "pending": {
+          "path": "postgres/pending.png",
+          "sha256": "6f316d5a8d56dd72df5644b1ac2f749fadd1c1b949f1b987c4c01d48aa30621b",
+          "cache_key": "834ff0da6309062e9be36986e996de090888bc36166dd06e8ddacd8183d36c20"
+        },
+        "running": {
+          "path": "postgres/running.png",
+          "sha256": "1575b92883e4a5b7c2da320d6e8951264c3c401a828d3dc2086342ac9d974c0c",
+          "cache_key": "429f698ee6245a7b0c8c82c0ebc53705ccffbaef69102ac26a3aa4d0607df826"
+        },
+        "terminating": {
+          "path": "postgres/terminating.png",
+          "sha256": "83bc7e83b0e709cd514c304c3fd4817eae750d9952991727b1dbc9d0f6ab05b0",
+          "cache_key": "5b44523a356a7e2907a1f847da38ed32155e7493b5c459432665d14fc30427d0"
+        },
+        "unknown": {
+          "path": "postgres/unknown.png",
+          "sha256": "cf8c1e10e1a1c4fa9149af2f58224bec196c3e7a82a35dc826eef4b19cd5adc6",
+          "cache_key": "cc35ce9d6ed99644f90c5961385aad4b2e3e5f286a65861b5bb02de47c7aaae6"
+        }
+      }
+    },
+    "redis": {
+      "description": "a small red panda with a bushy ringed tail and round white eye-patches",
+      "sheet": "redis/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "redis/backoff.png",
+          "sha256": "504cdac9ebcf9581d5f049e8c09f2b5e3988c21164ed06a882f23262be2c03c7",
+          "cache_key": "c7816a201018ded75ae8be6efc4eb9f84785c048394f6262f04519cefbef48c3"
+        },
+        "completed": {
+          "path": "redis/completed.png",
+          "sha256": "0625d34a44159a23809b519729ff3c5472258ecf4870b4b9edca182313c215aa",
+          "cache_key": "12128ba0d4d65cf3e9b4cc4f34178e18a598d1ced5e7d9f515d21abfe100d226"
+        },
+        "crashloop": {
+          "path": "redis/crashloop.png",
+          "sha256": "702b7a84b9cc209e1aee17955302c4cf7e5771eddcab64d399f4e4d197149102",
+          "cache_key": "2d0bdf1bc651c7e011e46f015782c0068acc815c6a8bf2c4651191659d63f8c8"
+        },
+        "pending": {
+          "path": "redis/pending.png",
+          "sha256": "dece15fc871a7aba5e411a5ece9c5e0437eb4f97aace25de32b91c26465d1a9c",
+          "cache_key": "041aac189c285494d78043fcac5c28ea046c5abab5530dc1f56755d9f70fc946"
+        },
+        "running": {
+          "path": "redis/running.png",
+          "sha256": "89a9f5735ec78bcb6c3406fd55f316d52d56e5fa1cfaa8c4b63029c31e9bc6be",
+          "cache_key": "7b01d0031378567d2705ae7a81677d278197ba146c33273be9e708b837a3483f"
+        },
+        "terminating": {
+          "path": "redis/terminating.png",
+          "sha256": "edf398f055ff2547f8ae7a6808691dcd62cc5eaf416d94430a14395be2d3c56d",
+          "cache_key": "f23b3f38ecfcb1240adf868226d85eb501a1a12a49d5da28e5f8b64ccc92fd4a"
+        },
+        "unknown": {
+          "path": "redis/unknown.png",
+          "sha256": "af97bbfd7ade1becc0f3dd04fa960ea5a89aaf271d902c2717c496cf8e0233b1",
+          "cache_key": "39b294e04f629c89d3fe54293c90824efa57a58e391e626d5f5f8bc3d79d2a9e"
+        }
+      }
+    },
+    "reporter": {
+      "description": "small white report-delivery ghost",
+      "sheet": "reporter/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "reporter/backoff.png",
+          "sha256": "af9f96bd17180fa99fc3b4137c73188e512255e1cec2eca27f0f729736ca7fe3",
+          "cache_key": "8bd76db29a5c9ee76fb1dba109fa7cb056cc1451e4116503699eefd8194431bf"
+        },
+        "completed": {
+          "path": "reporter/completed.png",
+          "sha256": "e1b47a79b1aafde618a733e15b5a66a1c7fb0a21ce42a719ecdf5a83e8756b0f",
+          "cache_key": "5c3cd4049dc4aaef321fed438d1af914c199f46ad46c1877a1e8cd6d78992222"
+        },
+        "crashloop": {
+          "path": "reporter/crashloop.png",
+          "sha256": "d8cee69c8c9979d3f7256fa1c6db01632e02d43c1ecebec0f6e5e0cc01f152ed",
+          "cache_key": "44e7c76316f945e311630c9895f0becd0d181b757491dcf2230e8ea537c509de"
+        },
+        "pending": {
+          "path": "reporter/pending.png",
+          "sha256": "210dacba8d0d792a5a128be39c5480efc3d091e69dab3f83611938940d9cd1e3",
+          "cache_key": "197dc4d7892285bab9506a915359fcc427f3add2a9eff6961721f0ab7196d80f"
+        },
+        "running": {
+          "path": "reporter/running.png",
+          "sha256": "12dd9b2468fb237763ae139178529371fafa37deec199365848a486df2421a19",
+          "cache_key": "7dbfacce4ca7e9a1bf0b0e84d88deec27eddda8dd453b59ff7e24a3a1c129bb0"
+        },
+        "terminating": {
+          "path": "reporter/terminating.png",
+          "sha256": "77e48fb9a1282a4527827c35ee7e7e7766ef18f37fbec374c865b548a5d4f2ac",
+          "cache_key": "dff4e9f12b2f9dbdd203a80bd168e422220a05026ab38be2436996e9def55bf8"
+        },
+        "unknown": {
+          "path": "reporter/unknown.png",
+          "sha256": "21cbc94fa15ff86112b2b1911ea06dd1d581bee1727d8877c2e1dd73d5102670",
+          "cache_key": "7a46632f5e0c881a69cccdb31247fdf271bf9fc6923089b74d44c703011194f6"
+        }
+      }
+    },
+    "user-service": {
+      "description": "a friendly orange corgi with a fluffy tail and a tiny tongue sticking out",
+      "sheet": "user-service/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "user-service/backoff.png",
+          "sha256": "8dade0511a28338506cb863d8531e03858a8323e44f50d15d39687c32155fe84",
+          "cache_key": "218b38014489a62757c0e6005b5c0e194353057467538719b407c87eca053e4f"
+        },
+        "completed": {
+          "path": "user-service/completed.png",
+          "sha256": "9863cf303f5dc92f2fdf75a37e5bf7de180b5a895dd508029f235568753e7a6a",
+          "cache_key": "70b1a4f06e8694ae82e4e0c620d5ea251ef91ec45fd19bfd9bc89332a08b48ed"
+        },
+        "crashloop": {
+          "path": "user-service/crashloop.png",
+          "sha256": "5783fe457bdce78993ed0fbb7a14e1e56893d4b89058938157fab2af4a34d7bb",
+          "cache_key": "60ed4804f64664236853f6302708e0774256d35c9dcfb7ea0044d2409a2c226d"
+        },
+        "pending": {
+          "path": "user-service/pending.png",
+          "sha256": "46341fb30404a31fb1aa1004a24396309f18b6e433296b11b329316207705ce5",
+          "cache_key": "44120f6c6c4354ca77fa98bce25927858d98069d35e8e5afe788fc8a9d2dcf8c"
+        },
+        "running": {
+          "path": "user-service/running.png",
+          "sha256": "da59453e0cea4d6e6f965f188425e1be7a0ca3cd8a01651a1c045a2829e89428",
+          "cache_key": "e80ba855afa533d7089c1bea7c77a96a134d11f6aed8fa4e0872b824ddf07190"
+        },
+        "terminating": {
+          "path": "user-service/terminating.png",
+          "sha256": "3ce3c0d0c339cbd6611cdbd4d9d3c6c336da4408a21f55343ee9b484fb0e64ef",
+          "cache_key": "ca1fcf972c65a9979da5c406b7928eb1f38724a06acd83ff114aac08129de7ed"
+        },
+        "unknown": {
+          "path": "user-service/unknown.png",
+          "sha256": "2eb4d04693dc69df14dfc8327f9d89f09c6e751affcda244fea4309c2e838010",
+          "cache_key": "d73e768e2695c52af3a6c1a0ea4deecf2fec507f527460cffc342abb5b32d2af"
+        }
+      }
+    },
+    "websocket": {
+      "description": "alert gray rabbit live connection mascot",
+      "sheet": "websocket/sprite-sheet-keyed.png",
+      "states": {}
+    },
+    "worker": {
+      "description": "gray raccoon with dark mask markings and striped tail",
+      "sheet": "worker/sprite-sheet-keyed.png",
+      "states": {
+        "backoff": {
+          "path": "worker/backoff.png",
+          "sha256": "13c52b654e2581372cf778748e5c3e53a8edfd1be2b408c63fcce5ac3c4f036d",
+          "cache_key": "fda9aaf821df8f4fa8abcb8d2fd66f8fd620eb4fd2f2fc1a75060927c7d90eaf"
+        },
+        "completed": {
+          "path": "worker/completed.png",
+          "sha256": "1adf6c4674f274fb3defa727d19113b906c00a756fc103dda81e2199d7508ed2",
+          "cache_key": "9efc8201ae3be81e54d7aa8308502fb882333009ab5798399483499f44f59a28"
+        },
+        "crashloop": {
+          "path": "worker/crashloop.png",
+          "sha256": "b647298d6afae534768cbc8cbdb4fdbc6e8a6934182f88c13390186c4463d8ba",
+          "cache_key": "845caf23b3db0bdbbe8f4c1bbebc74cb2bc4bbd3657ad23260802a4d246962ef"
+        },
+        "pending": {
+          "path": "worker/pending.png",
+          "sha256": "fd8ecb603c2583e48f6d992ecd06ae4fe75fa6fd42dfd35399fa7cbc5e32b3d0",
+          "cache_key": "3db76576607f90590802ba452c77d56cbe739823386d7fc70e9997b6e7ec004e"
+        },
+        "running": {
+          "path": "worker/running.png",
+          "sha256": "6d69fe0cafca51c525fe6c9e06a50360ef39ae28e21d4e18d3959e1e2debed7d",
+          "cache_key": "e591cf925db0dc97cb9e905768458b598999bd08201404fb36e3d5a08877ec72"
+        },
+        "terminating": {
+          "path": "worker/terminating.png",
+          "sha256": "5b8059beb1075231d559479e643fd96bd629408729e487cd40f77ba06d22b0d8",
+          "cache_key": "8ffb4b8a7fdb444c6905c857fbc6a044dee50c4141a25c55045f39dfbe3dc485"
+        },
+        "unknown": {
+          "path": "worker/unknown.png",
+          "sha256": "d68118d503b8a3b5798415b43819b0c4f794c2663b266f78cfac980c83124f60",
+          "cache_key": "34f8624e3291022b500e1da3f9c1a83958ca084516bb5bea811d73373320e926"
+        }
+      }
+    }
+  }
+}

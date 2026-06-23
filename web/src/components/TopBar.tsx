@@ -1,0 +1,525 @@
+/**
+ * TopBar — k9s-style cluster info banner.
+ *
+ * Two rows of compact, dense info:
+ *
+ *   row 1: brand · context picker · cluster · version · spacer · search · gear · user
+ *   row 2: namespace picker · pods · nodes · ns count · cpu · mem
+ *
+ * Visual goals (subtle TUI):
+ *   - sharp 1px borders, no border-radius on chrome
+ *   - bracketed labels like `[ ctx ]`, `[ ns ]`
+ *   - colored k9s-style status glyphs leading numeric counters
+ *
+ * Controls are mouse-driven (Freelens-style); we keep the ⌘K shortcut for
+ * search focus because that's a web convention, not a k9s vim binding.
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronDown,
+  Menu,
+  Search,
+  Settings,
+  User,
+} from "lucide-react";
+import {
+  useCluster,
+  useContext,
+  useNamespace,
+  useSearch,
+  workspaceActions,
+} from "../store/workspace";
+import { formatAge } from "../lib/format";
+
+const CONTEXTS = ["mock-cluster", "prod-us-east", "staging"] as const;
+
+// Operator identity shown in the account dropdown. The web client runs against
+// whatever kubeconfig the server is using, so this is the local operator label.
+const OPERATOR = "operator@kubagachi";
+
+export default function TopBar() {
+  const cluster = useCluster();
+  const ctx = useContext();
+  const ns = useNamespace();
+  const search = useSearch();
+
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [ctxOpen, setCtxOpen] = useState(false);
+  const [nsOpen, setNsOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
+
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  // ⌘K / Ctrl-K focuses search; Escape clears + blurs.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      } else if (e.key === "Escape" && document.activeElement === searchRef.current) {
+        workspaceActions.setSearch("");
+        searchRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const stats = useMemo(() => deriveStats(cluster), [cluster]);
+
+  // Honesty: a "live" cluster (real server / in-cluster) vs a mock/demo snapshot.
+  const isLive = cluster?.mode === "live" || cluster?.mode === "cluster";
+
+  // Real "last refresh": track the wall-clock time the cluster snapshot
+  // *reference* last changed, then re-render every second to show "Xs ago".
+  const refreshAtRef = useRef<number>(Date.now());
+  const lastSnapshotRef = useRef<typeof cluster>(cluster);
+  if (lastSnapshotRef.current !== cluster) {
+    lastSnapshotRef.current = cluster;
+    refreshAtRef.current = Date.now();
+  }
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => forceTick((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const refreshAgeSec = Math.max(0, Math.floor((Date.now() - refreshAtRef.current) / 1000));
+
+  return (
+    <div className="sticky top-0 z-30 bg-bg-panel border-b border-border text-text">
+      {/* Row 1: brand + context + version + search + utility icons */}
+      <div className="h-9 flex items-center gap-2 px-2 sm:px-3 border-b border-border/60">
+        {/* Hamburger (mobile only) */}
+        <button
+          type="button"
+          aria-label="Toggle navigation"
+          onClick={workspaceActions.toggleSidebar}
+          className="md:hidden inline-flex items-center justify-center h-7 w-7 hover:bg-bg-panel2 text-text-muted hover:text-text transition-colors duration-100 k9s-square"
+        >
+          <Menu size={15} />
+        </button>
+
+        {/* Brand */}
+        <div className="hidden md:flex items-baseline gap-2 pr-3 mr-1 border-r border-border/60 h-7 pl-1">
+          <span className="font-serif text-accent-bright text-[16px] leading-none tracking-tight self-center drop-shadow-[0_0_6px_rgba(201,184,138,0.25)]">kubagachi</span>
+          <span className="text-accent/60 text-[9px] uppercase tracking-[0.24em]">yscale</span>
+        </div>
+
+        {/* Cluster context picker */}
+        <Field label="ctx">
+          <Dropdown
+            open={ctxOpen}
+            onOpenChange={setCtxOpen}
+            trigger={
+              <span className="inline-flex items-center gap-1 bg-accent-dim text-accent border border-accent-soft px-1.5 h-[18px] k9s-square hover:border-accent transition-colors">
+                <span className="font-medium leading-none">{ctx}</span>
+                <ChevronDown size={11} className="opacity-70" />
+              </span>
+            }
+          >
+            <DropdownHeader>Switch context</DropdownHeader>
+            {CONTEXTS.map((c) => (
+              <DropdownItem
+                key={c}
+                active={c === ctx}
+                onClick={() => {
+                  workspaceActions.setContext(c);
+                  setCtxOpen(false);
+                }}
+              >
+                <span className="k9s-glyph text-accent">▸</span>
+                <span className="flex-1">{c}</span>
+                {c === ctx && <span className="text-[10px] text-text-muted">current</span>}
+              </DropdownItem>
+            ))}
+          </Dropdown>
+        </Field>
+
+        <Sep />
+
+        <Field label="ver">
+          <span className="text-text">{cluster?.version ?? "…"}</span>
+        </Field>
+
+        <Sep />
+
+        <Field label="api">
+          {isLive ? (
+            <span className="inline-flex items-center gap-1" title="Connected to a real cluster API">
+              <span className="text-status-running k9s-glyph">◉</span>
+              <span className="text-status-running text-[11px]">live</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1" title="No live cluster — showing mock / demo data">
+              <span className="text-status-backoff k9s-glyph">◌</span>
+              <span className="text-status-backoff/90 text-[11px]">mock</span>
+            </span>
+          )}
+        </Field>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Global search */}
+        <div
+          className={
+            "relative flex items-center h-7 border border-border bg-bg-base/60 transition-all duration-150 k9s-square " +
+            (searchFocused ? "w-80 border-accent/70" : "w-44 sm:w-56")
+          }
+        >
+          <Search size={12} className="absolute left-2 text-text-muted pointer-events-none" />
+          <input
+            ref={searchRef}
+            data-global-search
+            type="text"
+            value={search}
+            placeholder="search resources…"
+            onChange={(e) => workspaceActions.setSearch(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            className="w-full h-full bg-transparent pl-7 pr-12 text-[12px] text-text placeholder:text-text-muted/60 outline-none font-mono"
+          />
+          <kbd className="absolute right-2 hidden sm:inline-flex items-center gap-0.5 text-[10px] text-text-muted/80 font-mono select-none">
+            <span className="px-1 py-px border border-border/80 bg-bg-panel2 k9s-square">⌘</span>
+            <span className="px-1 py-px border border-border/80 bg-bg-panel2 k9s-square">K</span>
+          </kbd>
+        </div>
+
+        <Clock />
+
+        <button
+          type="button"
+          aria-label="Keybindings & help"
+          title="Keybindings & help"
+          onClick={() => workspaceActions.setHelpOpen(true)}
+          className="inline-flex items-center justify-center h-7 w-7 hover:bg-bg-panel2 text-text-muted hover:text-accent transition-colors duration-100 k9s-square"
+        >
+          <Settings size={14} />
+        </button>
+
+        {/* Account — small dropdown surfacing the active ctx/ns and user. */}
+        <Dropdown
+          open={userOpen}
+          onOpenChange={setUserOpen}
+          align="right"
+          triggerLabel="Account"
+          trigger={
+            <span
+              title="Account"
+              className="inline-flex items-center justify-center h-7 w-7 hover:bg-bg-panel2 text-text-muted hover:text-accent transition-colors duration-100 k9s-square"
+            >
+              <User size={14} />
+            </span>
+          }
+        >
+          <DropdownHeader>Session</DropdownHeader>
+          <div className="px-3 py-1.5 text-[12px] font-mono flex items-center gap-2">
+            <span className="k9s-glyph text-accent">▸</span>
+            <span className="flex-1 text-text truncate">{OPERATOR}</span>
+          </div>
+          <div className="my-1 mx-2 h-px bg-border" />
+          <div className="px-3 py-1 text-[11px] font-mono flex items-center justify-between gap-3">
+            <span className="text-text-muted uppercase tracking-wider text-[10px]">ctx</span>
+            <span className="text-accent truncate">{ctx}</span>
+          </div>
+          <div className="px-3 py-1 text-[11px] font-mono flex items-center justify-between gap-3">
+            <span className="text-text-muted uppercase tracking-wider text-[10px]">ns</span>
+            <span className="text-accent truncate">{ns === "all" ? "all" : ns}</span>
+          </div>
+        </Dropdown>
+      </div>
+
+      {/* Row 2: namespace picker + live counters (k9s top-strip vibe) */}
+      <div className="h-8 flex items-center gap-3 px-2 sm:px-3 text-[11px] tabular-nums overflow-x-auto scrollbar-thin">
+        {/* Namespace */}
+        <Field label="ns">
+          <Dropdown
+            open={nsOpen}
+            onOpenChange={setNsOpen}
+            trigger={
+              <span className="inline-flex items-center gap-1 bg-accent-dim text-accent border border-accent-soft px-1.5 h-[18px] k9s-square hover:border-accent transition-colors">
+                <span className="font-medium leading-none">{ns === "all" ? "all" : ns}</span>
+                <ChevronDown size={11} className="opacity-70" />
+              </span>
+            }
+          >
+            <DropdownHeader>Namespaces</DropdownHeader>
+            <DropdownItem
+              active={ns === "all"}
+              onClick={() => {
+                workspaceActions.setNamespace("all");
+                setNsOpen(false);
+              }}
+            >
+              <span className="k9s-glyph text-accent">▸</span>
+              <span className="flex-1">all</span>
+            </DropdownItem>
+            <div className="my-1 mx-2 h-px bg-border" />
+            {(cluster?.namespaces ?? []).map((n) => (
+              <DropdownItem
+                key={n.uid}
+                active={n.name === ns}
+                onClick={() => {
+                  workspaceActions.setNamespace(n.name);
+                  setNsOpen(false);
+                }}
+              >
+                <span className="k9s-glyph text-text-muted">·</span>
+                <span className="flex-1">{n.name}</span>
+                <span className="text-[10px] text-text-muted">{n.phase}</span>
+              </DropdownItem>
+            ))}
+          </Dropdown>
+        </Field>
+
+        <Sep />
+
+        <Counter
+          label="pods"
+          value={`${stats.podsReady}/${stats.podsTotal}`}
+          glyph={stats.podsHealthy ? "◉" : "▼"}
+          glyphClass={stats.podsHealthy ? "text-status-running" : "text-status-backoff"}
+        />
+        <Counter
+          label="nodes"
+          value={`${stats.nodesReady}/${stats.nodesTotal}`}
+          glyph={stats.nodesReady === stats.nodesTotal && stats.nodesTotal > 0 ? "◉" : "▼"}
+          glyphClass={
+            stats.nodesReady === stats.nodesTotal && stats.nodesTotal > 0
+              ? "text-status-running"
+              : "text-status-backoff"
+          }
+        />
+        <Counter
+          label="ns"
+          value={`${stats.namespaces}`}
+          glyph="◇"
+          glyphClass="text-text-muted"
+        />
+        <Counter
+          label="cpu"
+          value={stats.cpuPct >= 0 ? `${stats.cpuPct}%` : "—"}
+          glyph={stats.cpuPct > 80 ? "▲" : "◉"}
+          glyphClass={stats.cpuPct > 80 ? "text-status-backoff" : "text-status-running"}
+        />
+        <Counter
+          label="mem"
+          value={stats.memDisplay}
+          glyph={stats.memPct > 80 ? "▲" : "◉"}
+          glyphClass={stats.memPct > 80 ? "text-status-backoff" : "text-status-running"}
+        />
+
+        <div className="ml-auto text-text-muted/70 hidden md:inline" title="Time since the cluster snapshot last changed">
+          <span className="opacity-60">─</span> last refresh{" "}
+          <span className="text-text tabular-nums">
+            {refreshAgeSec < 2 ? "now" : `${formatAge(refreshAgeSec)} ago`}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mock-derived live stats — deterministic from the current cluster snapshot.
+// ---------------------------------------------------------------------------
+
+interface Stats {
+  podsTotal: number;
+  podsReady: number;
+  podsHealthy: boolean;
+  nodesTotal: number;
+  nodesReady: number;
+  namespaces: number;
+  cpuPct: number;
+  memPct: number;
+  memDisplay: string;
+}
+
+function deriveStats(cluster: ReturnType<typeof useCluster>): Stats {
+  if (!cluster) {
+    return {
+      podsTotal: 0,
+      podsReady: 0,
+      podsHealthy: true,
+      nodesTotal: 0,
+      nodesReady: 0,
+      namespaces: 0,
+      cpuPct: 0,
+      memPct: 0,
+      memDisplay: "—",
+    };
+  }
+  const podsTotal = cluster.pods.length;
+  const podsReady = cluster.pods.filter((p) => p.status === "running" || p.status === "completed").length;
+  const nodesTotal = cluster.nodes.length;
+  const nodesReady = cluster.nodes.filter((n) => n.status === "ready").length;
+  // Real cluster-wide utilisation: average of node percentages from
+  // metrics-server. -1 (no metrics) is excluded.
+  const cpuPct = avgPct(cluster.nodes.map((n) => n.cpuPct ?? -1));
+  const memPct = avgPct(cluster.nodes.map((n) => n.memPct ?? -1));
+  return {
+    podsTotal,
+    podsReady,
+    podsHealthy: podsReady === podsTotal,
+    nodesTotal,
+    nodesReady,
+    namespaces: cluster.namespaces.length,
+    cpuPct,
+    memPct,
+    memDisplay: memPct >= 0 ? `${memPct}%` : "—",
+  };
+}
+
+function avgPct(values: number[]): number {
+  const known = values.filter((v) => v >= 0);
+  if (known.length === 0) return -1;
+  return Math.round(known.reduce((a, b) => a + b, 0) / known.length);
+}
+
+// Clock shows a live wall-clock time, matching the mockup's TIME field.
+function Clock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  return (
+    <span className="hidden sm:inline-flex items-center gap-1.5 px-2 text-[11px] whitespace-nowrap border-l border-border/60 h-7 ml-1">
+      <span className="text-text-muted/70 uppercase tracking-wider">time</span>
+      <span className="text-text tabular-nums">{`${hh}:${mm}:${ss}`}</span>
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Local UI helpers
+// ---------------------------------------------------------------------------
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+      <span className="text-text-muted/70 uppercase tracking-wider">{label}:</span>
+      {children}
+    </span>
+  );
+}
+
+function Sep() {
+  return <span className="text-border select-none" aria-hidden="true">│</span>;
+}
+
+function Counter({
+  label,
+  value,
+  glyph,
+  glyphClass,
+}: {
+  label: string;
+  value: string;
+  glyph: string;
+  glyphClass: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <span className="text-text-muted/70 uppercase tracking-wider">{label}</span>
+      <span className={`k9s-glyph ${glyphClass}`}>{glyph}</span>
+      <span className="text-text font-medium">{value}</span>
+    </span>
+  );
+}
+
+interface DropdownProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  trigger: React.ReactNode;
+  children: React.ReactNode;
+  /** Which edge the menu aligns to. Defaults to "left". */
+  align?: "left" | "right";
+  /** Accessible name for icon-only triggers (the visible text otherwise names it). */
+  triggerLabel?: string;
+}
+
+function Dropdown({ open, onOpenChange, trigger, children, align = "left", triggerLabel }: DropdownProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!rootRef.current) return;
+      if (!rootRef.current.contains(e.target as Node)) onOpenChange(false);
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onOpenChange(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [open, onOpenChange]);
+
+  return (
+    <div ref={rootRef} className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-label={triggerLabel}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex items-center"
+      >
+        {trigger}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className={
+            "absolute top-[calc(100%+4px)] z-40 min-w-[220px] border border-border bg-bg-panel shadow-lg shadow-black/40 py-1 max-h-[60vh] overflow-y-auto scrollbar-thin k9s-square " +
+            (align === "right" ? "right-0" : "left-0")
+          }
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DropdownHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-text-muted">
+      {children}
+    </div>
+  );
+}
+
+interface DropdownItemProps {
+  active?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+function DropdownItem({ active, onClick, children }: DropdownItemProps) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className={
+        "w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left transition-colors duration-100 font-mono " +
+        (active
+          ? "bg-bg-panel2 text-text border-l-2 border-accent pl-[10px]"
+          : "text-text-muted hover:bg-bg-panel2 hover:text-text")
+      }
+    >
+      {children}
+    </button>
+  );
+}

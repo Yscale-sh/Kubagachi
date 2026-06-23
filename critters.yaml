@@ -1,0 +1,331 @@
+# critterforge input manifest.
+#
+# Two pipelines read this file:
+#
+#   critterforge generate   -> per-state PNGs (running.png, pending.png, ...)
+#                              uses: name, description, reference, instructions
+#
+#   critterforge sheet      -> one keyed status sprite sheet per critter at
+#                              <out>/<name>/sprite-sheet-keyed.png
+#                              uses: name, mascot, personality, visual_role,
+#                                    visual_design, instructions
+#
+# Fields:
+#   name           required. cache key + output directory name.
+#   description    free-form text describing the critter. used by `generate`
+#                  when no `reference` is provided.
+#   reference      optional path to a user-supplied PNG used as the canonical
+#                  base sprite (the 6 derived states are still generated).
+#   instructions   optional free-form steering appended to every prompt
+#                  (both pipelines).
+#   mascot         short tagline used by `sheet` (e.g. "cream robot cat").
+#   personality    one-line vibe used by `sheet`.
+#   visual_role    one-line role-in-the-system used by `sheet`.
+#   visual_design  bullet list of body/feature constraints used by `sheet`.
+
+critters:
+  - name: api-gateway
+    description: a sleek white cat with subtle pink details, small whiskers, gentle expression
+    mascot: white cat
+    personality: poised, watchful, routes-everything-cleanly
+    visual_role: API gateway / ingress pod mascot
+    visual_design:
+      - white cat body
+      - subtle pink ear/nose details
+      - small whiskers
+      - dark outline
+      - alert poised posture
+      - clean readable silhouette
+
+  - name: user-service
+    description: a friendly orange corgi with a fluffy tail and a tiny tongue sticking out
+    mascot: orange corgi
+    personality: friendly, social, customer-facing, energetic
+    visual_role: user/account service pod mascot
+    visual_design:
+      - orange corgi body
+      - cream chest and belly
+      - fluffy tail
+      - short stubby legs
+      - tiny pink tongue
+      - friendly open expression
+
+  - name: postgres
+    description: a chubby blue elephant with big ears and a small trunk curled upward
+    mascot: blue elephant
+    personality: durable, dependable, heavyweight, slow-but-steady
+    visual_role: primary relational database pod mascot
+    visual_design:
+      - chubby blue elephant body
+      - big floppy ears
+      - small trunk curled upward
+      - tiny tusks
+      - sturdy four-legged stance
+      - calm dependable expression
+
+  - name: redis
+    description: a small red panda with a bushy ringed tail and round white eye-patches
+    mascot: red panda
+    personality: quick, cached, nimble, in-memory fast
+    visual_role: in-memory cache / key-value store pod mascot
+    visual_design:
+      - small red panda body
+      - bushy ringed tail
+      - round white eye-patches
+      - small dark nose
+      - perky ears
+      - quick alert posture
+
+  - name: claude-code
+    description: a cream-colored cat sitting upright holding a tiny rectangular sign that clearly reads "AI"
+    instructions: keep the "AI" sign visible and legible in every state variant
+    mascot: cream robot cat
+    personality: calm, intelligent, helpful, technical, slightly futuristic
+    visual_role: AI / code assistant pod mascot
+    visual_design:
+      - cream / off-white robot cat body
+      - dark outline
+      - small square mechanical body
+      - cat ears
+      - small antenna
+      - tiny terminal-like chest panel
+      - subtle blue/green pixel highlights
+
+  - name: worker
+    description: a grey raccoon with a black bandit-mask and ringed tail, holding small tools
+    mascot: raccoon
+    personality: practical, busy, clever, dependable
+    visual_role: background worker / job execution pod mascot
+    visual_design:
+      - gray raccoon body
+      - dark mask markings around eyes
+      - striped tail
+      - small paws
+      - compact seated worker posture
+      - slightly mischievous but reliable expression
+
+  - name: job-processor
+    description: a tiny round yellow chick with stubby wings and small orange feet
+    mascot: yellow chick
+    personality: small, queued, eager, slightly sleepy
+    visual_role: job queue / batch processor pod mascot
+    visual_design:
+      - round yellow chick body
+      - tiny orange beak
+      - tiny wings
+      - small feet
+      - simple expressive eyes
+      - soft rounded silhouette
+
+  - name: email-sender
+    description: a pink fuzzy round monster with two googly eyes and short arms
+    mascot: pink monster
+    personality: frantic, fragile, expressive, message-delivery gremlin
+    visual_role: email sending pod mascot
+    visual_design:
+      - small pink monster body
+      - tiny horns
+      - short arms
+      - expressive mouth
+      - dark outline
+      - cute but unstable-looking
+      - good facial readability for failure states
+
+  - name: payment-service
+    description: a small fox curled up in a sleeping pose, cream belly, orange fur, eyes closed
+    mascot: brown dog
+    personality: cautious, sleepy, retrying, payment-guard dog
+    visual_role: payment service pod mascot
+    visual_design:
+      - small brown dog
+      - curled tail
+      - cream muzzle
+      - floppy or pointy ears
+      - compact body
+      - sleepy retry-friendly expressions
+      - readable lying-down BackOff pose
+
+  - name: reporter
+    description: a friendly white ghost with two small black dots for eyes and a wavy lower edge
+    mascot: white ghost
+    personality: quiet, fading, observant, report-delivery spirit
+    visual_role: reporting pod mascot
+    visual_design:
+      - small white ghost body
+      - soft wavy tail
+      - dark simple eyes
+      - slightly transparent-looking pixel palette
+      - cute spooky but not scary
+      - strong terminating/fading readability
+
+  - name: frontend
+    mascot: orange fox
+    personality: polished, fast, friendly, user-facing
+    visual_role: frontend / UI pod mascot
+    visual_design:
+      - orange fox body
+      - cream chest and muzzle
+      - pointy ears
+      - fluffy tail
+      - confident face
+      - clean silhouette
+      - polished frontend mascot energy
+
+  - name: websocket
+    mascot: gray rabbit
+    personality: alert, responsive, real-time, fast-reacting
+    visual_role: WebSocket / live connection pod mascot
+    visual_design:
+      - gray rabbit body
+      - long ears
+      - small paws
+      - compact seated pose
+      - alert eyes
+      - subtle signal/connection energy without adding UI symbols
+
+  - name: cache
+    mascot: green turtle
+    personality: stable, slow-but-safe, durable, completed
+    visual_role: cache / storage-safe pod mascot
+    visual_design:
+      - green turtle body
+      - rounded shell
+      - small head
+      - short legs
+      - calm face
+      - sturdy low silhouette
+      - peaceful completed-state readability
+
+  - name: search
+    mascot: black dotted cat
+    personality: mysterious, indexing, partially hidden, query-focused
+    visual_role: search / index pod mascot
+    visual_design:
+      - black or very dark cat silhouette
+      - dotted/dashed outline style
+      - small glowing eyes
+      - slim tail
+      - shadow-like form
+      - especially readable for Unknown state
+
+  - name: ml-inference
+    mascot: pink cow monster
+    personality: heavy, overloaded, compute-hungry, expressive
+    visual_role: ML inference workload pod mascot
+    visual_design:
+      - pink cow-like monster body
+      - tiny horns
+      - small ears
+      - chunky body
+      - expressive eyes
+      - slightly goofy heavy-compute mascot energy
+      - strong CrashLoopBackOff and OOMKilled readability
+
+  - name: cartogopher
+    description: a teal-blue Go gopher dressed as a cartographer pirate, wearing a navy tricorn pirate hat with gold trim, a gold sash across the chest, holding a brass sextant in one hand and an unrolled treasure map scroll marked with a compass rose in the other, with a small brass spyglass at its side
+    reference: refs/cartogopher.png
+    mascot: cartographer pirate gopher
+    personality: explorer, navigator, charts-the-codebase, sextant-and-scroll
+    visual_role: cartogopher code-intelligence mascot
+    instructions: always keep the navy tricorn pirate hat with gold trim, the brass sextant, and the treasure-map scroll recognizable in every state; keep the teal gopher body and big round eyes
+    visual_design:
+      - teal-blue gopher body with lighter belly
+      - big round white eyes and two front teeth
+      - navy tricorn pirate hat with gold trim
+      - gold sash across the chest
+      - brass sextant in one hand
+      - rolled treasure-map scroll with a compass rose
+      - small brass spyglass
+      - adventurous navigator energy
+
+  # --- Yscale family: one shared mascot — Nori the gray-and-white cat ---------
+  # Nori is the base character for every Yscale-family service (yscale, jaK3s,
+  # yscale-media, cartogopher-db). Services are told apart by their workload
+  # ANIMATIONS, not by a different animal. Full animation recipes + the pipeline
+  # decisions (Gemini high, keyed-sheet → per-state-sheet, 128 mesh) live in
+  # docs/critters.md. Generate (when greenlit):
+  #   critterforge sheet     --only nori --provider gemini --quality high
+  #   go run ./cmd/spriteanim --only nori --provider gemini --quality high
+  - name: nori
+    description: a chibi gray-and-white cat mascot with big round eyes, soft pink nose and inner ears, a fluffy tail, and a crisp dark outline — cute classic pixel-pet style, readable at 32x32
+    reference: refs/nori.png
+    mascot: gray and white cat
+    personality: calm, watchful, capable, friendly — the steady operator of the Yscale fleet
+    visual_role: shared Yscale-family mascot (networking, infra, media, code-intelligence)
+    instructions: keep Nori the SAME gray-and-white cat in every frame; limited palette (gray, white, soft pink, dark outline) with small accent pops (green, blue, red, purple); chibi, soft shading, crisp 1-2px outlines, readable at 32px
+    visual_design:
+      - gray-and-white chibi cat body
+      - big round eyes, soft pink nose and inner ears
+      - fluffy tail, small paws
+      - crisp dark 1-2px outline
+      - limited retro palette with small accent pops
+      - very cute, readable at 32x32
+    # Workload animations beyond the 8 base health states. Each renders to
+    # critters/nori/sprite-sheet-<state>.png and is played when kubagachi sets a
+    # pod's CritterState to that name (see internal/k8s workload mapping).
+    animations:
+      - state: bursting
+        project: yscale
+        base: running
+        theme: Nori autoscales by performing a ninja SHADOW-CLONE JUTSU (Naruto kage-bunshin) — a hand sign, a burst of smoke, and a whole squad of identical Nori clones poofs into existence, then the clones disperse to glowing cloud-portals. Playful, energetic, anime ninja energy.
+        frames:
+          - Nori sitting, bringing both paws together into a ninja hand-seal (crossed fingers), focused determined eyes
+          - Nori concentrating hard, a faint blue chakra aura gathering around it, paws still in the seal, tiny effort sparkles
+          - a big puff of white smoke bursts outward around Nori, body mostly hidden in the cloud
+          - smoke clearing — now TWO identical Nori clones flank the original, three Noris total, all the same gray-and-white cat
+          - another poof — FIVE small identical Nori clones fan out in a row, each in a ready ninja pose
+          - a full squad of identical Nori clones (six or seven) lined up in formation, glowing cloud-portal icons (orange, blue, green) appearing above them
+          - the clones leap and disperse toward the cloud-portals, little motion trails behind each one
+          - the clones vanish into the portals with small poofs, the original Nori lands back in a satisfied crouch, ready to loop
+      - state: scaling
+        project: yscale
+        base: running
+        theme: Nori scales out by stacking glowing node-tiles into a rising tower; steady and deliberate with an up-arrow
+        frames:
+          - Nori standing beside a single glowing node-tile on the ground
+          - Nori lifts the tile in a slight crouch
+          - Nori sets the tile down, tower height one, a faint up-arrow appears
+          - a second tile slides in and Nori stacks it, tower height two
+          - Nori stacks a third tile, tower height three, up-arrow brighter
+          - Nori stacks a fourth tile, standing taller, looking up the tower
+          - the tower glows and the up-arrow pulses at the top, Nori gives a confident nod
+          - Nori steps back beside the tower in a steady proud pose, ready to loop
+      - state: gpu-workload
+        project: yscale
+        base: running
+        theme: Nori runs heavy GPU compute by strapping on a glowing GPU jetpack with fan-blade eyes and green heat shimmer
+        frames:
+          - Nori standing with a small GPU jetpack on the ground beside it
+          - Nori straps the GPU jetpack onto its back, buckling up
+          - the jetpack fans spin up, a faint green glow begins, Nori bracing
+          - fans at full spin, green heat shimmer rising, Nori's eyes become tiny fan blades
+          - the jetpack roars with green exhaust jets, Nori leaning forward under load
+          - peak compute — bright green shimmer, a sweat drop, fan-blade eyes whirring
+          - heat venting, shimmer easing, Nori steadying
+          - fans wind down to an idle glow, Nori upright and ready, loop
+      - state: edge-fleet
+        project: yscale
+        base: running
+        theme: Nori manages an edge fleet by launching tiny scout-drones to edge map-pins that light up green
+        frames:
+          - Nori sitting with a small control pad, a faint map outline behind it
+          - Nori taps the pad and one scout-drone lifts off from beside it
+          - the drone flies to the left edge and a map-pin there lights up green
+          - Nori launches a second drone toward the top edge
+          - the second pin lights up, two drones hovering at the edges
+          - a third drone launches to the right edge, Nori tracking it
+          - all three edge pins glow and the drones blink, Nori satisfied
+          - the drones hold station and Nori gives a small salute, ready to loop
+      - state: draining
+        project: yscale
+        base: running
+        theme: Nori drains a node for maintenance by cordoning it and scooping its pods into a carry-basket; careful and gentle
+        frames:
+          - Nori beside a node-block, a small no-entry cordon sign appearing
+          - Nori sets the cordon sign on the node and the node dims slightly
+          - Nori opens a carry-basket, kneeling by the node
+          - Nori scoops the first pod-orb off the node into the basket
+          - Nori scoops a second pod-orb, the node emptying
+          - the last pod-orb is scooped, the node now empty and greyed
+          - Nori lifts the full basket carefully, balancing it
+          - Nori carries the basket off to the side with a gentle careful step, loop

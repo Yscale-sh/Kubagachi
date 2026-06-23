@@ -1,0 +1,28 @@
+# CartoGopher Configuration (Auto-generated)
+# Tailored to your project based on detected files and directories.
+# Edit freely — this file is only created once.
+
+# Framework detection (auto|gin|chi|echo|fiber|nethttp|grpc|graphql|custom:<pkg>)
+framework: auto
+
+# Paths to ignore during analysis
+# Directories discovered in your project are marked with (found)
+ignore_paths:
+  - ".git/"
+  - "bakes/"
+  - "*.test.go"
+  - "*_test.go"
+  - "testdata/"
+  - "*.pyc"
+  - "*.lock"
+
+# Languages to analyze (detected from your project)
+languages:
+  go: true
+  yaml: true
+  docker: true
+
+# Performance configuration
+performance:
+  max_workers: 0
+  auto_detect_cpu: true
