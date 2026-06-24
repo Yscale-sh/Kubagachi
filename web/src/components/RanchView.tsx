@@ -19,17 +19,28 @@ import CritterPlayer from "./CritterPlayer";
 
 // Mirror HabitatDashboard's STATUS_COLOR so sick critters glow the same hue.
 const STATUS_COLOR: Record<PodStatus, string> = {
-  running: "#5ec46b",
-  pending: "#e0b83a",
-  completed: "#4ec8c8",
-  terminating: "#9a9a9a",
-  crashloop: "#e05a5a",
-  backoff: "#e0903a",
-  error: "#e05a5a",
-  unknown: "#6a6a6a",
+  running: "#63e07a",
+  pending: "#f0c94a",
+  completed: "#57d9da",
+  terminating: "#beb7aa",
+  crashloop: "#ff6767",
+  backoff: "#f39a3d",
+  error: "#ff6767",
+  unknown: "#a9a296",
 };
 
 const GOLD = "#c9b88a";
+
+const SEVERITY: PodStatus[] = [
+  "crashloop",
+  "error",
+  "backoff",
+  "pending",
+  "terminating",
+  "unknown",
+  "completed",
+  "running",
+];
 
 // To avoid a circular import with HabitatDashboard, define the group shape here.
 export interface RanchNodeGroup {
@@ -53,6 +64,17 @@ function hashStr(s: string): number {
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
+}
+
+function worstPodStatus(pods: Pod[]): PodStatus {
+  return SEVERITY.find((s) => pods.some((p) => p.status === s)) ?? "running";
+}
+
+function nodeHealthColor(status: PodStatus): string {
+  if (status === "running" || status === "completed") return STATUS_COLOR.running;
+  if (status === "pending" || status === "backoff") return STATUS_COLOR[status];
+  if (status === "crashloop" || status === "error") return STATUS_COLOR.error;
+  return STATUS_COLOR[status];
 }
 
 export default function RanchView({
@@ -91,23 +113,32 @@ function NodeBox({
   const ready = node ? node.status === "ready" : false;
   const name = node?.name ?? "(unscheduled)";
   const ledgeUrl = ready ? "/ranch/ledge-green.png" : "/ranch/ledge-dry.png";
+  const railColor = nodeHealthColor(worstPodStatus(pods));
 
   return (
-    <section className="mx-auto w-full max-w-[min(96%,1000px)] border border-border-strong bg-bg-panel/35 k9s-square overflow-hidden">
+    <section
+      className="relative mx-auto w-full max-w-[min(96%,1000px)] border border-border-strong bg-bg-panel/35 k9s-square overflow-hidden"
+      style={{ boxShadow: `0 0 24px -18px ${railColor}` }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-[3px]"
+        style={{ background: `linear-gradient(90deg, transparent, ${railColor}, transparent)` }}
+      />
       {/* Node header — the "box" label bar. */}
-      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap px-3 py-1.5 border-b border-border bg-bg-panel/70 font-mono">
-        <span className="text-tui-cyan/80 text-[10px] uppercase tracking-wider">node</span>
-        <span className="text-text text-[12px] truncate max-w-[50%] sm:max-w-none">{name}</span>
+      <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap px-3 py-2 border-b border-border bg-bg-panel/70 font-mono">
+        <span className="text-tui-cyan text-[10px] uppercase tracking-[0.18em] font-semibold">node</span>
+        <span className="text-text text-[13px] font-semibold truncate max-w-[50%] sm:max-w-none">{name}</span>
         {node && (
           <span
-            className="text-[11px]"
+            className="text-[11px] font-medium"
             style={{ color: ready ? STATUS_COLOR.running : STATUS_COLOR.error }}
           >
             {ready ? "Ready" : "NotReady"}
           </span>
         )}
-        <span className="ml-auto text-[10px] text-text-muted">
-          pods <span className="text-text tabular-nums">{pods.length}</span>
+        <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-text-muted">
+          pods <span className="text-text tabular-nums text-[12px] font-semibold">{pods.length}</span>
         </span>
       </div>
 
@@ -117,12 +148,12 @@ function NodeBox({
         className="p-3 sm:p-4"
         style={{
           background:
-            "radial-gradient(130% 120% at 50% 0%, rgba(255,255,255,0.025), transparent 60%), #0c0e0c",
+            `radial-gradient(120% 90% at 50% 100%, ${railColor}1c, transparent 62%), radial-gradient(130% 120% at 50% 0%, rgba(93,184,232,0.055), transparent 60%), #0c0e0c`,
         }}
       >
         {pods.length === 0 ? (
           <div className="flex items-center justify-center py-8">
-            <span className="text-text-muted/70 text-[11px] italic font-mono px-3 py-1 bg-bg-base/40 k9s-square">
+            <span className="text-text-muted text-[11px] italic font-mono px-3 py-1 bg-bg-base/50 k9s-square">
               quiet pasture · no pods grazing here
             </span>
           </div>
@@ -229,11 +260,14 @@ function Critter({
 
       {/* Name tag under the ledge. */}
       <span
-        className="mt-1 max-w-full truncate font-mono text-[9px] sm:text-[10px] leading-none px-1 py-0.5 k9s-square border"
+        className="mt-1 max-w-full truncate font-mono text-[10px] sm:text-[11px] leading-none px-1.5 py-1 k9s-square border font-medium"
         style={{
-          color: active ? "#0a0a0a" : sick ? color : "#b9b4a8",
-          backgroundColor: active ? GOLD : "transparent",
-          borderColor: active ? GOLD : sibling ? `${GOLD}66` : "transparent",
+          // Selection reads as a terminal cursor/underline (gold text + gold
+          // underline), not a chunky sticker badge.
+          color: active ? GOLD : sick ? color : "#e07b9a",
+          backgroundColor: "transparent",
+          borderColor: sibling && !active ? `${GOLD}66` : "transparent",
+          boxShadow: active ? `inset 0 -2px 0 0 ${GOLD}` : undefined,
         }}
       >
         {title}

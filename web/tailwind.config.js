@@ -28,8 +28,8 @@ export default {
           strong: "#3a3a3a",
         },
         text: {
-          DEFAULT: "#e8e6e0",
-          muted: "#8a857a",
+          DEFAULT: "#f2eee5",
+          muted: "#b8b1a2",
         },
         accent: {
           DEFAULT: "#c9b88a",
@@ -46,14 +46,14 @@ export default {
           pink: "#e07b9a",
         },
         status: {
-          running: "#5ec46b",
-          pending: "#e0b83a",
-          completed: "#4ec8c8",
-          crashloop: "#e05a5a",
-          backoff: "#e0903a",
-          terminating: "#9a9a9a",
-          unknown: "#6a6a6a",
-          error: "#e05a5a",
+          running: "#63e07a",
+          pending: "#f0c94a",
+          completed: "#57d9da",
+          crashloop: "#ff6767",
+          backoff: "#f39a3d",
+          terminating: "#beb7aa",
+          unknown: "#a9a296",
+          error: "#ff6767",
         },
       },
       fontFamily: {

@@ -59,8 +59,8 @@ img.pixelated {
    from aggregate cluster health (gold when thriving → amber → red on crisis),
    so the whole room subtly takes on the cluster's mood. Defaults to gold. */
 :root {
-  --mood-glow: rgba(201, 184, 138, 0.08);
-  --mood-glow-2: rgba(126, 184, 126, 0.05);
+  --mood-glow: rgba(201, 184, 138, 0.14);
+  --mood-glow-2: rgba(93, 184, 232, 0.08);
 }
 
 .atmo-glow {
@@ -69,9 +69,11 @@ img.pixelated {
   pointer-events: none;
   z-index: 70;
   background:
-    radial-gradient(900px 640px at 0% 0%, var(--mood-glow), transparent 62%),
-    radial-gradient(900px 640px at 100% 100%, var(--mood-glow-2), transparent 62%);
-  filter: blur(24px);
+    radial-gradient(760px 520px at 10% 4%, var(--mood-glow), transparent 64%),
+    radial-gradient(820px 620px at 90% 92%, var(--mood-glow-2), transparent 66%),
+    linear-gradient(135deg, rgba(93, 184, 232, 0.035), transparent 40%, rgba(224, 123, 154, 0.04) 72%, transparent);
+  filter: blur(18px) saturate(1.35);
+  opacity: 0.96;
   transition: background 900ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -103,6 +105,10 @@ body[data-cluster="critical"] .atmo-grain {
 }
 body[data-cluster="critical"] .atmo-vignette {
   background: radial-gradient(ellipse 120% 100% at 50% 45%, transparent 54%, rgba(40, 0, 0, 0.42) 100%);
+}
+body[data-cluster="critical"] .atmo-glow {
+  opacity: 1;
+  filter: blur(16px) saturate(1.55);
 }
 
 /* A single hairline scanline that sweeps the habitat once when a new crisis

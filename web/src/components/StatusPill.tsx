@@ -88,17 +88,17 @@ export default function StatusPill({ status, compact }: StatusPillProps) {
   const s = styleFor(status);
   if (compact) {
     return (
-      <span className={`k9s-glyph ${s.text}`} aria-label={status} title={status}>
+      <span className={`k9s-glyph ${s.text} font-semibold`} aria-label={status} title={status}>
         {s.glyph}
       </span>
     );
   }
   return (
     <span
-      className={`inline-flex items-center gap-1.5 ${s.text} font-mono text-[11px] tabular-nums`}
+      className={`inline-flex items-center gap-1.5 ${s.text} font-mono text-[11px] font-semibold tabular-nums leading-5`}
       title={status}
     >
-      <span aria-hidden="true" className="k9s-glyph">{s.glyph}</span>
+      <span aria-hidden="true" className="k9s-glyph drop-shadow-[0_0_5px_currentColor]">{s.glyph}</span>
       <span className="tracking-wider">{s.code}</span>
     </span>
   );

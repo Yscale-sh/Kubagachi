@@ -34,14 +34,14 @@ import StatusPill from "./StatusPill";
 
 // Vivid terminal status colors, matching the KUBE-TUI mockup.
 const STATUS_COLOR: Record<PodStatus, string> = {
-  running: "#5ec46b",
-  pending: "#e0b83a",
-  completed: "#4ec8c8",
-  terminating: "#9a9a9a",
-  crashloop: "#e05a5a",
-  backoff: "#e0903a",
-  error: "#e05a5a",
-  unknown: "#6a6a6a",
+  running: "#63e07a",
+  pending: "#f0c94a",
+  completed: "#57d9da",
+  terminating: "#beb7aa",
+  crashloop: "#ff6767",
+  backoff: "#f39a3d",
+  error: "#ff6767",
+  unknown: "#a9a296",
 };
 
 const TUI_PINK = "#e07b9a";
@@ -205,7 +205,7 @@ export default function HabitatDashboard() {
   }, [tracePairs, cluster]);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-[200px_minmax(0,1fr)_300px] font-mono text-[12px] bg-bg-base">
+    <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-[216px_minmax(0,1fr)_308px] font-mono text-[12px] bg-bg-base">
       <LeftRail cluster={cluster} mood={mood} />
       <section className="relative min-w-0 flex-1 lg:flex-none min-h-0 flex flex-col lg:border-x border-border">
         {mood?.tier === "critical" && (
@@ -348,7 +348,7 @@ function LeftRail({ cluster, mood }: { cluster: Cluster; mood: Mood | null }) {
   const fluxFailing = cluster.flux?.filter((f) => f.ready === "False" && !f.suspended).length ?? 0;
 
   return (
-    <aside className="hidden lg:flex overflow-y-auto scrollbar-thin p-3 flex-col gap-4 bg-bg-panel/40">
+    <aside className="hidden lg:flex overflow-y-auto scrollbar-thin p-3.5 flex-col gap-4 bg-bg-panel/40">
       {mood && <ClusterVitals mood={mood} cluster={cluster} />}
 
       <Panel title="cluster overview">
@@ -372,8 +372,8 @@ function LeftRail({ cluster, mood }: { cluster: Cluster; mood: Mood | null }) {
             onClick={() => workspaceActions.openTab("flux")}
             className="w-full flex items-center justify-between hover:text-accent transition-colors"
           >
-            <span className="text-text-muted">OBJECTS</span>
-            <span className="tabular-nums text-text">{cluster.flux?.length ?? 0}</span>
+            <span className="text-[10px] text-text-muted uppercase tracking-[0.16em]">OBJECTS</span>
+            <span className="tabular-nums text-[13px] font-semibold text-text">{cluster.flux?.length ?? 0}</span>
           </button>
           {fluxFailing > 0 && (
             <Row label="FAILING" value={fluxFailing} color={STATUS_COLOR.error} />
@@ -399,8 +399,8 @@ function LeftRail({ cluster, mood }: { cluster: Cluster; mood: Mood | null }) {
       <Panel title="controls">
         <div className="flex flex-col gap-1">
           {CONTROLS.map(([k, desc]) => (
-            <div key={k} className="flex items-center justify-between text-[11px]">
-              <span className="text-accent">{k}</span>
+            <div key={k} className="flex items-center justify-between text-[11px] leading-5">
+              <span className="text-accent font-semibold">{k}</span>
               <span className="text-text-muted">{desc}</span>
             </div>
           ))}
@@ -412,11 +412,11 @@ function LeftRail({ cluster, mood }: { cluster: Cluster; mood: Mood | null }) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border border-border bg-bg-panel/60 k9s-square">
-      <div className="px-2.5 py-1.5 border-b border-border text-[10px] uppercase tracking-[0.18em] text-tui-cyan">
+    <div className="border border-border bg-bg-panel/60 k9s-square shadow-[0_0_0_1px_rgba(93,184,232,0.03)]">
+      <div className="px-3 py-2 border-b border-border text-[10px] uppercase tracking-[0.18em] text-tui-cyan font-semibold">
         {title}
       </div>
-      <div className="p-2.5 flex flex-col gap-1">{children}</div>
+      <div className="p-3 flex flex-col gap-1.5">{children}</div>
     </div>
   );
 }
@@ -439,7 +439,7 @@ function Row({
       <span className="text-[11px]" style={{ color: color ?? undefined }}>
         {label}
       </span>
-      <span className="tabular-nums text-[12px]" style={{ color: color ?? undefined }}>
+      <span className="tabular-nums text-[13px] font-semibold" style={{ color: color ?? undefined }}>
         {value}
       </span>
     </>
@@ -481,15 +481,25 @@ function NodeBox({
   const name = node?.name ?? "(unscheduled)";
   const cpu = node?.cpuPct ?? -1;
   const mem = node?.memPct ?? -1;
+  const worst = worstPodStatus(pods);
+  const railColor = nodeHealthColor(worst);
 
   return (
-    <div className="border border-border-strong k9s-square">
-      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap px-2.5 sm:px-3 py-1.5 border-b border-border">
-        <span className="text-tui-cyan/80 text-[10px] uppercase tracking-wider">node</span>
-        <span className="text-text text-[12px] truncate max-w-[55%] sm:max-w-none">{name}</span>
+    <div
+      className="relative border border-border-strong bg-bg-panel/25 k9s-square overflow-hidden"
+      style={{ boxShadow: `0 0 22px -18px ${railColor}` }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-[3px]"
+        style={{ background: `linear-gradient(90deg, transparent, ${railColor}, transparent)` }}
+      />
+      <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap px-2.5 sm:px-3 py-2 border-b border-border bg-bg-panel/45">
+        <span className="text-tui-cyan text-[10px] uppercase tracking-[0.18em] font-semibold">node</span>
+        <span className="text-text text-[13px] font-semibold truncate max-w-[55%] sm:max-w-none">{name}</span>
         {node && (
           <span
-            className="text-[11px]"
+            className="text-[11px] font-medium"
             style={{ color: ready ? STATUS_COLOR.running : STATUS_COLOR.error }}
           >
             {ready ? "Ready" : "NotReady"}
@@ -498,12 +508,17 @@ function NodeBox({
         <span className="ml-auto flex items-center gap-3 sm:gap-4">
           <LoadBar label="CPU" pct={cpu} history={node ? nodeHistory(node.name).cpu : []} />
           <LoadBar label="MEM" pct={mem} history={node ? nodeHistory(node.name).mem : []} />
-          <span className="hidden sm:inline text-[10px] text-text-muted">
-            pods <span className="text-text tabular-nums">{pods.length}</span>
+          <span className="hidden sm:inline text-[10px] uppercase tracking-[0.14em] text-text-muted">
+            pods <span className="text-text tabular-nums text-[12px] font-semibold">{pods.length}</span>
           </span>
         </span>
       </div>
-      <div className="p-2.5 sm:p-4 grid gap-2.5 sm:gap-3 grid-cols-[repeat(auto-fill,minmax(104px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+      <div
+        className="p-2.5 sm:p-4 grid gap-2.5 sm:gap-3 grid-cols-[repeat(auto-fill,minmax(104px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]"
+        style={{
+          background: `radial-gradient(90% 70% at 50% 100%, ${railColor}18, transparent 62%)`,
+        }}
+      >
         {pods.map((p) => (
           <PodCard
             key={p.uid}
@@ -569,10 +584,10 @@ function PodCard({
       onClick={onSelect}
       onDoubleClick={onInspect}
       title={`${pod.name}  ·  double-click to inspect`}
-      className={`group flex flex-col items-center gap-1 p-2 k9s-square border transition-colors ${stateClass} ${acute ? "kubagachi-crash-pulse" : ""}`}
+      className={`group flex flex-col items-center gap-1.5 p-2.5 k9s-square border transition-colors ${stateClass} ${acute ? "kubagachi-crash-pulse" : ""}`}
       style={sickStyle}
     >
-      <span className="text-[11px] sm:text-[12px] text-text truncate max-w-full">{title}</span>
+      <span className="text-[11px] sm:text-[12px] text-tui-pink truncate max-w-full font-medium">{title}</span>
       <div className="w-16 h-16 sm:w-24 sm:h-24 kubagachi-bob" style={{ animationDelay: bobDelay }}>
         <CritterPlayer critter={pod.critter} status={pod.critterState ?? pod.status} />
       </div>
@@ -584,16 +599,16 @@ function PodCard({
 function LoadBar({ label, pct, history }: { label: string; pct: number; history: number[] }) {
   if (pct < 0) {
     return (
-      <span className="flex items-center gap-1 text-[10px] text-text-muted">
+      <span className="flex items-center gap-1 text-[10px] text-text-muted leading-5">
         {label} <span className="opacity-50">—</span>
       </span>
     );
   }
   const color = pct >= 85 ? STATUS_COLOR.error : pct >= 65 ? STATUS_COLOR.pending : STATUS_COLOR.running;
   return (
-    <span className="flex items-center gap-1 text-[10px] text-text-muted">
+    <span className="flex items-center gap-1 text-[10px] text-text-muted leading-5">
       {label}
-      <span className="tabular-nums" style={{ color }}>
+      <span className="tabular-nums text-[11px] font-semibold" style={{ color }}>
         {pct}%
       </span>
       <span className="hidden sm:inline tracking-[-1px]" style={{ color }} title={`${label} history`}>
@@ -649,10 +664,10 @@ function PodDetails({
   return (
     <div className="flex flex-col">
       <div className="p-3 border-b border-border">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2 font-semibold">
           pod details
         </div>
-        <div className="text-[12px] break-all" style={{ color: TUI_PINK }}>
+        <div className="text-[13px] leading-snug font-semibold break-all" style={{ color: TUI_PINK }}>
           {pod.name}
         </div>
         <div className="mx-auto my-3 w-28 h-28">
@@ -673,7 +688,7 @@ function PodDetails({
       </div>
 
       <div className="p-3 border-b border-border">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2 font-semibold">
           containers
         </div>
         {pod.containers.length === 0 && (
@@ -683,9 +698,9 @@ function PodDetails({
           <div key={c.name} className="mb-2 last:mb-0">
             <div className="flex items-center gap-1.5">
               <span style={{ color: c.ready ? STATUS_COLOR.running : STATUS_COLOR.error }}>●</span>
-              <span className="text-[11px] text-text truncate">{c.name}</span>
+              <span className="text-[12px] text-text truncate font-medium">{c.name}</span>
             </div>
-            <div className="text-[10px] text-text-muted pl-3.5">
+            <div className="text-[11px] text-text-muted pl-3.5 leading-5">
               {c.state ?? "—"}
               {c.reason ? ` · ${c.reason}` : ""} · ↻{c.restartCount}
             </div>
@@ -695,28 +710,28 @@ function PodDetails({
 
       {podEvents.length > 0 && (
         <div className="p-3 border-b border-border">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2 font-semibold">
             events
           </div>
           {podEvents.map((e) => (
-            <div key={e.uid} className="mb-1.5 last:mb-0">
+            <div key={e.uid} className="mb-2 last:mb-0">
               <div className="flex items-baseline gap-1.5">
                 <span
-                  className="text-[10px] tabular-nums"
+                  className="text-[10px] tabular-nums font-medium"
                   style={{ color: e.type === "warning" ? STATUS_COLOR.pending : STATUS_COLOR.running }}
                 >
                   {formatAge(e.lastSeenSec)}
                 </span>
-                <span className="text-[11px] text-text truncate">{e.reason}</span>
+                <span className="text-[12px] text-text truncate font-medium">{e.reason}</span>
               </div>
-              <div className="text-[10px] text-text-muted pl-1 truncate">{e.message}</div>
+              <div className="text-[11px] text-text-muted pl-1 truncate leading-5">{e.message}</div>
             </div>
           ))}
         </div>
       )}
 
       <div className="p-3">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2 font-semibold">
           connections
         </div>
         <Connections pod={pod} siblings={siblings} />
@@ -785,9 +800,9 @@ function Connections({ pod, siblings }: { pod: Pod; siblings: Pod[] }) {
 function PodLoad({ pod }: { pod: Pod }) {
   const history = podHistory(pod.uid);
   return (
-    <div className="flex items-baseline gap-2 py-0.5">
-      <span className="text-[10px] text-text-muted uppercase tracking-wider w-16 shrink-0">CPU</span>
-      <span className="text-[11px] text-text tabular-nums">{formatCPU((pod.cpuMilli ?? 0) / 1000)}</span>
+    <div className="flex items-baseline gap-2 py-1">
+      <span className="text-[10px] text-text-muted uppercase tracking-[0.16em] w-16 shrink-0">CPU</span>
+      <span className="text-[12px] text-text tabular-nums font-medium">{formatCPU((pod.cpuMilli ?? 0) / 1000)}</span>
       <span className="text-[11px] tracking-[-1px] ml-auto" style={{ color: STATUS_COLOR.running }} title="cpu history">
         {sparkline(history.length ? history : [pod.cpuMilli ?? 0], 10)}
       </span>
@@ -797,9 +812,9 @@ function PodLoad({ pod }: { pod: Pod }) {
 
 function Field({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="flex items-baseline gap-2 py-0.5">
-      <span className="text-[10px] text-text-muted uppercase tracking-wider w-16 shrink-0">{label}</span>
-      <span className={`text-[11px] break-all ${color ? "" : "text-text"}`} style={color ? { color } : undefined}>
+    <div className="flex items-baseline gap-2 py-1">
+      <span className="text-[10px] text-text-muted uppercase tracking-[0.16em] w-16 shrink-0">{label}</span>
+      <span className={`text-[12px] break-all font-medium ${color ? "" : "text-text"}`} style={color ? { color } : undefined}>
         {value}
       </span>
     </div>
@@ -813,15 +828,15 @@ function Field({ label, value, color }: { label: string; value: string; color?: 
 function EventLog({ events }: { events: ClusterEvent[] }) {
   const recent = [...events].sort((a, b) => a.lastSeenSec - b.lastSeenSec).slice(0, 40);
   return (
-    <div className="shrink-0 h-24 sm:h-32 lg:h-36 border-t border-border bg-bg-panel/50 flex flex-col">
-      <div className="px-3 py-1 border-b border-border text-[10px] uppercase tracking-[0.18em] text-tui-cyan">
+    <div className="shrink-0 h-28 sm:h-36 lg:h-40 border-t border-border bg-bg-panel/55 flex flex-col">
+      <div className="px-3 py-1.5 border-b border-border text-[10px] uppercase tracking-[0.18em] text-tui-cyan font-semibold">
         event log
       </div>
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-3 py-1.5 flex flex-col gap-0.5">
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-3 py-2 flex flex-col gap-1">
         {recent.length === 0 && <span className="text-text-muted text-[11px]">no events.</span>}
         {recent.map((e) => (
-          <div key={e.uid} className="flex items-baseline gap-2 text-[11px] leading-tight">
-            <span className="text-text-muted tabular-nums shrink-0">{formatAge(e.lastSeenSec)}</span>
+          <div key={e.uid} className="flex items-baseline gap-2 text-[11px] leading-5">
+            <span className="text-text-muted tabular-nums shrink-0 font-medium">{formatAge(e.lastSeenSec)}</span>
             <span
               className="shrink-0"
               style={{ color: e.type === "warning" ? STATUS_COLOR.pending : STATUS_COLOR.running }}
@@ -829,8 +844,11 @@ function EventLog({ events }: { events: ClusterEvent[] }) {
               {e.type === "warning" ? "⚠" : "ℹ"}
             </span>
             <span className="text-text-muted truncate">
-              <span className="text-text">{e.reason}</span> {e.involvedObject?.kind}/
-              {e.involvedObject?.name} — {e.message}
+              <span className="text-text font-medium">{e.reason}</span>{" "}
+              <span className="text-tui-pink">
+                {e.involvedObject?.kind}/{e.involvedObject?.name}
+              </span>{" "}
+              — {e.message}
             </span>
           </div>
         ))}
@@ -926,10 +944,21 @@ const SEVERITY: PodStatus[] = [
   "running",
 ];
 
+function worstPodStatus(pods: Pod[]): PodStatus {
+  return SEVERITY.find((s) => pods.some((p) => p.status === s)) ?? "running";
+}
+
+function nodeHealthColor(status: PodStatus): string {
+  if (status === "running" || status === "completed") return STATUS_COLOR.running;
+  if (status === "pending" || status === "backoff") return STATUS_COLOR[status];
+  if (status === "crashloop" || status === "error") return STATUS_COLOR.error;
+  return STATUS_COLOR[status];
+}
+
 const MOOD_STYLE: Record<MoodTier, { color: string; label: string; glow: string; glow2: string }> = {
-  thriving: { color: "#c9b88a", label: "THRIVING", glow: "rgba(201, 184, 138, 0.09)", glow2: "rgba(126, 184, 126, 0.06)" },
-  warn:     { color: "#e0903a", label: "DEGRADED", glow: "rgba(224, 144, 58, 0.09)", glow2: "rgba(224, 144, 58, 0.05)" },
-  critical: { color: "#e05a5a", label: "CRITICAL", glow: "rgba(224, 90, 90, 0.11)", glow2: "rgba(224, 90, 90, 0.05)" },
+  thriving: { color: "#c9b88a", label: "THRIVING", glow: "rgba(201, 184, 138, 0.16)", glow2: "rgba(93, 184, 232, 0.09)" },
+  warn:     { color: "#f39a3d", label: "DEGRADED", glow: "rgba(243, 154, 61, 0.16)", glow2: "rgba(240, 201, 74, 0.08)" },
+  critical: { color: "#ff6767", label: "CRITICAL", glow: "rgba(255, 103, 103, 0.18)", glow2: "rgba(224, 123, 154, 0.10)" },
 };
 
 function deriveMood(cluster: Cluster | null): Mood | null {
@@ -996,10 +1025,10 @@ function ClusterVitals({ mood, cluster }: { mood: Mood; cluster: Cluster }) {
   const cpuSeries = useMemo(() => clusterCpuHistory(cluster), [cluster]);
 
   return (
-    <div className="border border-border-strong bg-bg-panel/60 k9s-square">
-      <div className="px-2.5 py-1.5 border-b border-border flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan">cluster vitals</span>
-        <span className="text-[11px] tabular-nums font-medium" style={{ color: mood.color }}>
+    <div className="border border-border-strong bg-bg-panel/60 k9s-square shadow-[0_0_26px_-18px_rgba(201,184,138,0.9)]">
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan font-semibold">cluster vitals</span>
+        <span className="text-[12px] tabular-nums font-semibold" style={{ color: mood.color }}>
           {pct}%
         </span>
       </div>
@@ -1009,11 +1038,14 @@ function ClusterVitals({ mood, cluster }: { mood: Mood; cluster: Cluster }) {
             className="absolute inset-0 rounded-full"
             style={{
               background: `conic-gradient(#d8c89a 0 ${ratioDeg}deg, ${mood.unhealthyColor} ${ratioDeg}deg 360deg)`,
-              boxShadow: `0 0 18px -4px ${mood.color}`,
+              boxShadow: `0 0 22px -4px ${mood.color}, 0 0 44px -22px #5db8e8`,
             }}
             aria-hidden="true"
           />
-          <div className="absolute inset-[9px] rounded-full bg-bg-base overflow-hidden flex items-center justify-center ring-1 ring-black/40">
+          <div
+            className="absolute inset-[9px] rounded-full bg-bg-base overflow-hidden flex items-center justify-center ring-1 ring-black/40"
+            style={{ boxShadow: `inset 0 0 22px -12px ${mood.color}` }}
+          >
             {champ && (
               <div className="w-[94%] h-[94%] kubagachi-bob">
                 <CritterPlayer critter={champ.critter} status={champ.critterState ?? champ.status} />
@@ -1021,20 +1053,20 @@ function ClusterVitals({ mood, cluster }: { mood: Mood; cluster: Cluster }) {
             )}
           </div>
         </div>
-        <span className="k9s-bracket text-[12px] tracking-[0.22em]" style={{ color: mood.color }}>
+        <span className="k9s-bracket text-[12px] tracking-[0.22em] font-semibold" style={{ color: mood.color }}>
           {mood.label}
         </span>
         {champ && (
           <span
-            className="text-[11px] break-all text-center leading-tight"
+            className="text-[12px] break-all text-center leading-tight font-medium"
             style={{ color: TUI_PINK }}
             title={champ.name}
           >
             {champ.ownerName ?? champ.name}
           </span>
         )}
-        <div className="self-stretch flex items-center gap-2 text-[10px] text-text-muted pt-1.5 mt-0.5 border-t border-border/60">
-          <span className="uppercase tracking-wider">cluster cpu</span>
+        <div className="self-stretch flex items-center gap-2 text-[10px] text-text-muted pt-2 mt-1 border-t border-border/60">
+          <span className="uppercase tracking-[0.16em]">cluster cpu</span>
           <span className="tracking-[-1px] flex-1 text-right" style={{ color: mood.color }}>
             {sparkline(cpuSeries.length ? cpuSeries : [0], 16, 100)}
           </span>
