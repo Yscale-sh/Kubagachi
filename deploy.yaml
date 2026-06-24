@@ -18,14 +18,13 @@ sizing:
   profile: minimal
   replicas: 1
 
-# A kubeconfig (its token carries cluster-read access) injected as a secret;
-# the entrypoint writes it to a file and points KUBECONFIG at it. Dev gets a
-# placeholder until the real value is set in the dev secret store.
-secrets:
-  - KUBECONFIG_DATA
+# Live-cluster access comes from the pod's own ServiceAccount (cluster-read
+# RBAC granted out-of-band: ClusterRole kubagachi-cluster-read). The entrypoint
+# synthesizes a kubeconfig from the mounted SA token — no secret needed. To
+# point at a DIFFERENT cluster instead, add a KUBECONFIG_DATA secret here.
 
-# TCP probe: the binary serves immediately (demo) and stays up before the
-# kubeconfig secret is wired, so port-open is the honest readiness signal.
+# TCP probe: the web server is up as soon as it binds; port-open is the honest
+# readiness signal regardless of cluster connectivity.
 probes:
   type: tcp
 
