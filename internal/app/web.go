@@ -101,6 +101,63 @@ type webDeployment struct {
 	AgeSec    int    `json:"ageSec"`
 }
 
+type webStatefulSet struct {
+	Name          string `json:"name"`
+	Namespace     string `json:"namespace"`
+	Replicas      int    `json:"replicas"`
+	ReadyReplicas int    `json:"readyReplicas"`
+	ServiceName   string `json:"serviceName"`
+	Image         string `json:"image"`
+	AgeSec        int    `json:"ageSec"`
+}
+
+type webDaemonSet struct {
+	Name                   string `json:"name"`
+	Namespace              string `json:"namespace"`
+	DesiredNumberScheduled int    `json:"desiredNumberScheduled"`
+	NumberReady            int    `json:"numberReady"`
+	NumberAvailable        int    `json:"numberAvailable"`
+	Image                  string `json:"image"`
+	AgeSec                 int    `json:"ageSec"`
+}
+
+type webReplicaSet struct {
+	Name          string `json:"name"`
+	Namespace     string `json:"namespace"`
+	Replicas      int    `json:"replicas"`
+	ReadyReplicas int    `json:"readyReplicas"`
+	OwnerKind     string `json:"ownerKind,omitempty"`
+	OwnerName     string `json:"ownerName,omitempty"`
+	Image         string `json:"image"`
+	AgeSec        int    `json:"ageSec"`
+}
+
+type webJob struct {
+	Name        string `json:"name"`
+	Namespace   string `json:"namespace"`
+	Completions int    `json:"completions"`
+	Succeeded   int    `json:"succeeded"`
+	Failed      int    `json:"failed"`
+	Active      int    `json:"active"`
+	Status      string `json:"status"`
+	Image       string `json:"image"`
+	DurationSec int    `json:"durationSec,omitempty"`
+	AgeSec      int    `json:"ageSec"`
+}
+
+type webCronJob struct {
+	Name               string `json:"name"`
+	Namespace          string `json:"namespace"`
+	Schedule           string `json:"schedule"`
+	Suspend            bool   `json:"suspend"`
+	LastScheduleAgeSec int    `json:"lastScheduleAgeSec,omitempty"`
+	HasLastSchedule    bool   `json:"hasLastSchedule"`
+	ActiveJobs         int    `json:"activeJobs"`
+	Status             string `json:"status"`
+	Image              string `json:"image"`
+	AgeSec             int    `json:"ageSec"`
+}
+
 type webServicePort struct {
 	Name       string `json:"name"`
 	Port       int    `json:"port"`
@@ -120,6 +177,24 @@ type webService struct {
 	AgeSec     int              `json:"ageSec"`
 }
 
+type webIngressRule struct {
+	Host        string `json:"host"`
+	Path        string `json:"path"`
+	ServiceName string `json:"serviceName"`
+	ServicePort int    `json:"servicePort"`
+}
+
+type webIngress struct {
+	Name      string           `json:"name"`
+	Namespace string           `json:"namespace"`
+	ClassName string           `json:"className,omitempty"`
+	Hosts     []string         `json:"hosts"`
+	Rules     []webIngressRule `json:"rules"`
+	TLS       bool             `json:"tls"`
+	Address   string           `json:"address,omitempty"`
+	AgeSec    int              `json:"ageSec"`
+}
+
 type webConfigMap struct {
 	Name      string   `json:"name"`
 	Namespace string   `json:"namespace"`
@@ -128,20 +203,71 @@ type webConfigMap struct {
 	AgeSec    int      `json:"ageSec"`
 }
 
+type webSecret struct {
+	Name      string   `json:"name"`
+	Namespace string   `json:"namespace"`
+	Type      string   `json:"type"`
+	Keys      []string `json:"keys"`
+	DataBytes int      `json:"dataBytes"`
+	AgeSec    int      `json:"ageSec"`
+}
+
+type webPersistentVolumeClaim struct {
+	Name             string   `json:"name"`
+	Namespace        string   `json:"namespace"`
+	Capacity         string   `json:"capacity"`
+	AccessModes      []string `json:"accessModes"`
+	StorageClassName string   `json:"storageClassName"`
+	Phase            string   `json:"phase"`
+	VolumeName       string   `json:"volumeName,omitempty"`
+	AgeSec           int      `json:"ageSec"`
+}
+
+type webPersistentVolume struct {
+	Name             string   `json:"name"`
+	Capacity         string   `json:"capacity"`
+	AccessModes      []string `json:"accessModes"`
+	ReclaimPolicy    string   `json:"reclaimPolicy"`
+	Phase            string   `json:"phase"`
+	StorageClassName string   `json:"storageClassName"`
+	ClaimNamespace   string   `json:"claimNamespace,omitempty"`
+	ClaimName        string   `json:"claimName,omitempty"`
+	AgeSec           int      `json:"ageSec"`
+}
+
+type webStorageClass struct {
+	Name              string `json:"name"`
+	Provisioner       string `json:"provisioner"`
+	ReclaimPolicy     string `json:"reclaimPolicy"`
+	VolumeBindingMode string `json:"volumeBindingMode"`
+	IsDefault         bool   `json:"isDefault"`
+	AgeSec            int    `json:"ageSec"`
+}
+
 type webSnapshot struct {
-	Mode             string     `json:"mode"` // "live" | "demo"
-	Context          string     `json:"context"`
-	CurrentNamespace string     `json:"currentNamespace"`
-	FluxInstalled    bool       `json:"fluxInstalled"`
-	MetricsInstalled bool       `json:"metricsInstalled"`
-	Pods             []webPod   `json:"pods"`
-	Nodes            []webNode  `json:"nodes"`
-	Namespaces       []string   `json:"namespaces"`
-	Events           []webEvent      `json:"events"`
-	Flux             []webFlux       `json:"flux"`
-	Deployments      []webDeployment `json:"deployments"`
-	Services         []webService    `json:"services"`
-	ConfigMaps       []webConfigMap  `json:"configMaps"`
+	Mode                   string                     `json:"mode"` // "live" | "demo"
+	Context                string                     `json:"context"`
+	CurrentNamespace       string                     `json:"currentNamespace"`
+	FluxInstalled          bool                       `json:"fluxInstalled"`
+	MetricsInstalled       bool                       `json:"metricsInstalled"`
+	Pods                   []webPod                   `json:"pods"`
+	Nodes                  []webNode                  `json:"nodes"`
+	Namespaces             []string                   `json:"namespaces"`
+	Events                 []webEvent                 `json:"events"`
+	Flux                   []webFlux                  `json:"flux"`
+	Deployments            []webDeployment            `json:"deployments"`
+	StatefulSets           []webStatefulSet           `json:"statefulSets"`
+	DaemonSets             []webDaemonSet             `json:"daemonSets"`
+	ReplicaSets            []webReplicaSet            `json:"replicaSets"`
+	Jobs                   []webJob                   `json:"jobs"`
+	CronJobs               []webCronJob               `json:"cronJobs"`
+	Services               []webService               `json:"services"`
+	Ingresses              []webIngress               `json:"ingresses"`
+	ConfigMaps             []webConfigMap             `json:"configMaps"`
+	Secrets                []webSecret                `json:"secrets"`
+	PersistentVolumeClaims []webPersistentVolumeClaim `json:"persistentVolumeClaims"`
+	PersistentVolumes      []webPersistentVolume      `json:"persistentVolumes"`
+	StorageClasses         []webStorageClass          `json:"storageClasses"`
 }
 
 // webStatus maps kubagachi's normalized statuses onto the web UI vocabulary
@@ -159,19 +285,29 @@ func webStatus(s string) string {
 
 func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 	snap := webSnapshot{
-		Mode:             mode,
-		Context:          cs.ClusterName,
-		CurrentNamespace: cs.Namespace,
-		FluxInstalled:    cs.FluxInstalled,
-		MetricsInstalled: cs.MetricsInstalled,
-		Pods:             []webPod{},
-		Nodes:            []webNode{},
-		Namespaces:       []string{},
-		Events:           []webEvent{},
-		Flux:             []webFlux{},
-		Deployments:      []webDeployment{},
-		Services:         []webService{},
-		ConfigMaps:       []webConfigMap{},
+		Mode:                   mode,
+		Context:                cs.ClusterName,
+		CurrentNamespace:       cs.Namespace,
+		FluxInstalled:          cs.FluxInstalled,
+		MetricsInstalled:       cs.MetricsInstalled,
+		Pods:                   []webPod{},
+		Nodes:                  []webNode{},
+		Namespaces:             []string{},
+		Events:                 []webEvent{},
+		Flux:                   []webFlux{},
+		Deployments:            []webDeployment{},
+		StatefulSets:           []webStatefulSet{},
+		DaemonSets:             []webDaemonSet{},
+		ReplicaSets:            []webReplicaSet{},
+		Jobs:                   []webJob{},
+		CronJobs:               []webCronJob{},
+		Services:               []webService{},
+		Ingresses:              []webIngress{},
+		ConfigMaps:             []webConfigMap{},
+		Secrets:                []webSecret{},
+		PersistentVolumeClaims: []webPersistentVolumeClaim{},
+		PersistentVolumes:      []webPersistentVolume{},
+		StorageClasses:         []webStorageClass{},
 	}
 	nsSeen := map[string]bool{}
 	for _, p := range cs.Pods {
@@ -246,6 +382,45 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 			Image: d.Image, Selector: d.Selector, AgeSec: int(d.AgeSeconds),
 		})
 	}
+	for _, s := range cs.StatefulSets {
+		snap.StatefulSets = append(snap.StatefulSets, webStatefulSet{
+			Name: s.Name, Namespace: s.Namespace,
+			Replicas: int(s.Replicas), ReadyReplicas: int(s.ReadyReplicas),
+			ServiceName: s.ServiceName, Image: s.Image, AgeSec: int(s.AgeSeconds),
+		})
+	}
+	for _, d := range cs.DaemonSets {
+		snap.DaemonSets = append(snap.DaemonSets, webDaemonSet{
+			Name: d.Name, Namespace: d.Namespace,
+			DesiredNumberScheduled: int(d.DesiredNumberScheduled),
+			NumberReady:            int(d.NumberReady), NumberAvailable: int(d.NumberAvailable),
+			Image: d.Image, AgeSec: int(d.AgeSeconds),
+		})
+	}
+	for _, r := range cs.ReplicaSets {
+		snap.ReplicaSets = append(snap.ReplicaSets, webReplicaSet{
+			Name: r.Name, Namespace: r.Namespace,
+			Replicas: int(r.Replicas), ReadyReplicas: int(r.ReadyReplicas),
+			OwnerKind: r.OwnerKind, OwnerName: r.OwnerName,
+			Image: r.Image, AgeSec: int(r.AgeSeconds),
+		})
+	}
+	for _, j := range cs.Jobs {
+		snap.Jobs = append(snap.Jobs, webJob{
+			Name: j.Name, Namespace: j.Namespace,
+			Completions: int(j.Completions), Succeeded: int(j.Succeeded),
+			Failed: int(j.Failed), Active: int(j.Active), Status: j.Status,
+			Image: j.Image, DurationSec: int(j.DurationSec), AgeSec: int(j.AgeSeconds),
+		})
+	}
+	for _, c := range cs.CronJobs {
+		snap.CronJobs = append(snap.CronJobs, webCronJob{
+			Name: c.Name, Namespace: c.Namespace, Schedule: c.Schedule,
+			Suspend: c.Suspend, LastScheduleAgeSec: int(c.LastScheduleAgeSec),
+			HasLastSchedule: c.HasLastSchedule, ActiveJobs: c.ActiveJobs,
+			Status: c.Status, Image: c.Image, AgeSec: int(c.AgeSeconds),
+		})
+	}
 	for _, s := range cs.Services {
 		ports := make([]webServicePort, 0, len(s.Ports))
 		for _, p := range s.Ports {
@@ -260,6 +435,23 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 			Ports: ports, Selector: s.Selector, AgeSec: int(s.AgeSeconds),
 		})
 	}
+	for _, i := range cs.Ingresses {
+		hosts := i.Hosts
+		if hosts == nil {
+			hosts = []string{}
+		}
+		rules := make([]webIngressRule, 0, len(i.Rules))
+		for _, r := range i.Rules {
+			rules = append(rules, webIngressRule{
+				Host: r.Host, Path: r.Path, ServiceName: r.ServiceName, ServicePort: int(r.ServicePort),
+			})
+		}
+		snap.Ingresses = append(snap.Ingresses, webIngress{
+			Name: i.Name, Namespace: i.Namespace, ClassName: i.ClassName,
+			Hosts: hosts, Rules: rules, TLS: i.TLS, Address: i.Address,
+			AgeSec: int(i.AgeSeconds),
+		})
+	}
 	for _, c := range cs.ConfigMaps {
 		keys := c.Keys
 		if keys == nil {
@@ -268,6 +460,46 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 		snap.ConfigMaps = append(snap.ConfigMaps, webConfigMap{
 			Name: c.Name, Namespace: c.Namespace,
 			Keys: keys, DataBytes: c.DataBytes, AgeSec: int(c.AgeSeconds),
+		})
+	}
+	for _, s := range cs.Secrets {
+		keys := s.Keys
+		if keys == nil {
+			keys = []string{}
+		}
+		snap.Secrets = append(snap.Secrets, webSecret{
+			Name: s.Name, Namespace: s.Namespace, Type: s.Type,
+			Keys: keys, DataBytes: s.DataBytes, AgeSec: int(s.AgeSeconds),
+		})
+	}
+	for _, p := range cs.PersistentVolumeClaims {
+		modes := p.AccessModes
+		if modes == nil {
+			modes = []string{}
+		}
+		snap.PersistentVolumeClaims = append(snap.PersistentVolumeClaims, webPersistentVolumeClaim{
+			Name: p.Name, Namespace: p.Namespace, Capacity: p.Capacity,
+			AccessModes: modes, StorageClassName: p.StorageClassName, Phase: p.Phase,
+			VolumeName: p.VolumeName, AgeSec: int(p.AgeSeconds),
+		})
+	}
+	for _, p := range cs.PersistentVolumes {
+		modes := p.AccessModes
+		if modes == nil {
+			modes = []string{}
+		}
+		snap.PersistentVolumes = append(snap.PersistentVolumes, webPersistentVolume{
+			Name: p.Name, Capacity: p.Capacity, AccessModes: modes,
+			ReclaimPolicy: p.ReclaimPolicy, Phase: p.Phase,
+			StorageClassName: p.StorageClassName, ClaimNamespace: p.ClaimNamespace,
+			ClaimName: p.ClaimName, AgeSec: int(p.AgeSeconds),
+		})
+	}
+	for _, s := range cs.StorageClasses {
+		snap.StorageClasses = append(snap.StorageClasses, webStorageClass{
+			Name: s.Name, Provisioner: s.Provisioner, ReclaimPolicy: s.ReclaimPolicy,
+			VolumeBindingMode: s.VolumeBindingMode, IsDefault: s.IsDefault,
+			AgeSec: int(s.AgeSeconds),
 		})
 	}
 	return snap

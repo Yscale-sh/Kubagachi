@@ -16,21 +16,37 @@
 
 import { generateCluster, mutatePodStatus } from "./mock";
 import type {
+  AccessMode,
   Cluster,
   ConfigMap,
   ContainerSpec,
+  CronJob,
+  CronJobStatus,
+  DaemonSet,
   Deployment,
   Event,
   FluxObject,
   FluxReady,
+  Ingress,
+  Job,
+  JobStatus,
   Namespace,
   Node,
   Phase,
+  PersistentVolume,
+  PersistentVolumeClaim,
   Pod,
   PodStatus,
+  PVCPhase,
+  PVPhase,
+  ReplicaSet,
+  Secret,
+  SecretType,
   Service,
   ServicePort,
   ServiceType,
+  StatefulSet,
+  StorageClass,
   WorkloadStatus,
 } from "./types";
 
@@ -120,6 +136,63 @@ interface ServerDeployment {
   ageSec?: number;
 }
 
+interface ServerStatefulSet {
+  name?: string;
+  namespace?: string;
+  replicas?: number;
+  readyReplicas?: number;
+  serviceName?: string;
+  image?: string;
+  ageSec?: number;
+}
+
+interface ServerDaemonSet {
+  name?: string;
+  namespace?: string;
+  desiredNumberScheduled?: number;
+  numberReady?: number;
+  numberAvailable?: number;
+  image?: string;
+  ageSec?: number;
+}
+
+interface ServerReplicaSet {
+  name?: string;
+  namespace?: string;
+  replicas?: number;
+  readyReplicas?: number;
+  ownerKind?: string;
+  ownerName?: string;
+  image?: string;
+  ageSec?: number;
+}
+
+interface ServerJob {
+  name?: string;
+  namespace?: string;
+  completions?: number;
+  succeeded?: number;
+  failed?: number;
+  active?: number;
+  status?: string;
+  image?: string;
+  durationSec?: number;
+  ageSec?: number;
+}
+
+interface ServerCronJob {
+  name?: string;
+  namespace?: string;
+  schedule?: string;
+  suspend?: boolean;
+  lastScheduleAgeSec?: number;
+  hasLastSchedule?: boolean;
+  activeJobs?: number;
+  status?: string;
+  image?: string;
+  ageSec?: number;
+}
+
 interface ServerServicePort {
   name?: string;
   port?: number;
@@ -140,11 +213,70 @@ interface ServerService {
   ageSec?: number;
 }
 
+interface ServerIngressRule {
+  host?: string;
+  path?: string;
+  serviceName?: string;
+  servicePort?: number;
+}
+
+interface ServerIngress {
+  name?: string;
+  namespace?: string;
+  className?: string;
+  hosts?: string[];
+  rules?: ServerIngressRule[];
+  tls?: boolean;
+  address?: string;
+  ageSec?: number;
+}
+
 interface ServerConfigMap {
   name?: string;
   namespace?: string;
   keys?: string[];
   dataBytes?: number;
+  ageSec?: number;
+}
+
+interface ServerSecret {
+  name?: string;
+  namespace?: string;
+  type?: string;
+  keys?: string[];
+  dataBytes?: number;
+  ageSec?: number;
+}
+
+interface ServerPersistentVolumeClaim {
+  name?: string;
+  namespace?: string;
+  capacity?: string;
+  accessModes?: string[];
+  storageClassName?: string;
+  phase?: string;
+  volumeName?: string;
+  ageSec?: number;
+}
+
+interface ServerPersistentVolume {
+  name?: string;
+  capacity?: string;
+  accessModes?: string[];
+  reclaimPolicy?: string;
+  phase?: string;
+  storageClassName?: string;
+  claimNamespace?: string;
+  claimName?: string;
+  ageSec?: number;
+}
+
+interface ServerStorageClass {
+  name?: string;
+  provisioner?: string;
+  reclaimPolicy?: string;
+  volumeBindingMode?: string;
+  isDefault?: boolean;
   ageSec?: number;
 }
 
@@ -160,8 +292,18 @@ interface ServerSnapshot {
   events?: ServerEvent[];
   flux?: ServerFlux[];
   deployments?: ServerDeployment[];
+  statefulSets?: ServerStatefulSet[];
+  daemonSets?: ServerDaemonSet[];
+  replicaSets?: ServerReplicaSet[];
+  jobs?: ServerJob[];
+  cronJobs?: ServerCronJob[];
   services?: ServerService[];
+  ingresses?: ServerIngress[];
   configMaps?: ServerConfigMap[];
+  secrets?: ServerSecret[];
+  persistentVolumeClaims?: ServerPersistentVolumeClaim[];
+  persistentVolumes?: ServerPersistentVolume[];
+  storageClasses?: ServerStorageClass[];
 }
 
 // ---------------------------------------------------------------------------
@@ -449,6 +591,110 @@ function toDeployment(d: ServerDeployment): Deployment {
   };
 }
 
+function workloadStatus(replicas: number, ready: number): WorkloadStatus {
+  return replicas > 0 && ready >= replicas
+    ? "healthy"
+    : ready === 0
+      ? "degraded"
+      : "progressing";
+}
+
+function toStatefulSet(s: ServerStatefulSet): StatefulSet {
+  const name = s.name ?? "statefulset";
+  const namespace = s.namespace || undefined;
+  const replicas = s.replicas ?? 0;
+  const ready = s.readyReplicas ?? 0;
+  return {
+    kind: "StatefulSet",
+    uid: `sts-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: s.ageSec ?? 0,
+    replicas,
+    readyReplicas: ready,
+    serviceName: s.serviceName ?? "—",
+    status: workloadStatus(replicas, ready),
+    image: s.image ?? "—",
+  };
+}
+
+function toDaemonSet(d: ServerDaemonSet): DaemonSet {
+  const name = d.name ?? "daemonset";
+  const namespace = d.namespace || undefined;
+  const desired = d.desiredNumberScheduled ?? 0;
+  const ready = d.numberReady ?? 0;
+  return {
+    kind: "DaemonSet",
+    uid: `ds-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: d.ageSec ?? 0,
+    desiredNumberScheduled: desired,
+    numberReady: ready,
+    numberAvailable: d.numberAvailable ?? ready,
+    status: workloadStatus(desired, ready),
+    image: d.image ?? "—",
+  };
+}
+
+function toReplicaSet(r: ServerReplicaSet): ReplicaSet {
+  const name = r.name ?? "replicaset";
+  const namespace = r.namespace || undefined;
+  return {
+    kind: "ReplicaSet",
+    uid: `rs-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: r.ageSec ?? 0,
+    replicas: r.replicas ?? 0,
+    readyReplicas: r.readyReplicas ?? 0,
+    ownerKind: r.ownerKind || undefined,
+    ownerName: r.ownerName || undefined,
+    image: r.image ?? "—",
+  };
+}
+
+const JOB_STATUSES: ReadonlySet<string> = new Set(["active", "completed", "failed", "suspended"]);
+
+function toJob(j: ServerJob): Job {
+  const name = j.name ?? "job";
+  const namespace = j.namespace || undefined;
+  const status = (JOB_STATUSES.has(j.status ?? "") ? j.status : "active") as JobStatus;
+  return {
+    kind: "Job",
+    uid: `job-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: j.ageSec ?? 0,
+    completions: j.completions ?? 1,
+    succeeded: j.succeeded ?? 0,
+    failed: j.failed ?? 0,
+    active: j.active ?? 0,
+    status,
+    image: j.image ?? "—",
+    durationSec: j.durationSec || undefined,
+  };
+}
+
+function toCronJob(c: ServerCronJob): CronJob {
+  const name = c.name ?? "cronjob";
+  const namespace = c.namespace || undefined;
+  const status: CronJobStatus = c.status === "suspended" || c.suspend ? "suspended" : "active";
+  return {
+    kind: "CronJob",
+    uid: `cronjob-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: c.ageSec ?? 0,
+    schedule: c.schedule ?? "—",
+    suspend: !!c.suspend,
+    lastScheduleAgeSec: c.hasLastSchedule ? c.lastScheduleAgeSec ?? 0 : undefined,
+    activeJobs: c.activeJobs ?? 0,
+    status,
+    image: c.image ?? "—",
+  };
+}
+
 const SERVICE_TYPES: ReadonlySet<string> = new Set([
   "ClusterIP",
   "NodePort",
@@ -481,6 +727,28 @@ function toService(s: ServerService): Service {
   };
 }
 
+function toIngress(i: ServerIngress): Ingress {
+  const name = i.name ?? "ingress";
+  const namespace = i.namespace || undefined;
+  return {
+    kind: "Ingress",
+    uid: `ing-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: i.ageSec ?? 0,
+    className: i.className || undefined,
+    hosts: i.hosts ?? [],
+    rules: (i.rules ?? []).map((r) => ({
+      host: r.host ?? "",
+      path: r.path || "/",
+      serviceName: r.serviceName ?? "—",
+      servicePort: r.servicePort ?? 0,
+    })),
+    tls: !!i.tls,
+    address: i.address || undefined,
+  };
+}
+
 function toConfigMap(c: ServerConfigMap): ConfigMap {
   const name = c.name ?? "configmap";
   const namespace = c.namespace || undefined;
@@ -492,6 +760,116 @@ function toConfigMap(c: ServerConfigMap): ConfigMap {
     ageSec: c.ageSec ?? 0,
     dataKeys: c.keys ?? [],
     sizeBytes: c.dataBytes ?? 0,
+  };
+}
+
+const SECRET_TYPES: ReadonlySet<string> = new Set([
+  "Opaque",
+  "kubernetes.io/tls",
+  "kubernetes.io/dockerconfigjson",
+  "kubernetes.io/service-account-token",
+  "helm.sh/release.v1",
+]);
+
+function toSecret(s: ServerSecret): Secret {
+  const name = s.name ?? "secret";
+  const namespace = s.namespace || undefined;
+  const type = SECRET_TYPES.has(s.type ?? "") ? s.type : "Opaque";
+  return {
+    kind: "Secret",
+    uid: `secret-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: s.ageSec ?? 0,
+    type: type as SecretType,
+    dataKeys: s.keys ?? [],
+    sizeBytes: s.dataBytes ?? 0,
+  };
+}
+
+const ACCESS_MODES: ReadonlySet<string> = new Set([
+  "ReadWriteOnce",
+  "ReadOnlyMany",
+  "ReadWriteMany",
+  "ReadWriteOncePod",
+]);
+
+function toAccessModes(modes: string[] | undefined): AccessMode[] {
+  return (modes ?? []).filter((m): m is AccessMode => ACCESS_MODES.has(m));
+}
+
+function toPVCPhase(raw: string | undefined): PVCPhase {
+  switch ((raw ?? "").toLowerCase()) {
+    case "bound":
+      return "bound";
+    case "lost":
+      return "lost";
+    default:
+      return "pending";
+  }
+}
+
+function toPVPhase(raw: string | undefined): PVPhase {
+  switch ((raw ?? "").toLowerCase()) {
+    case "bound":
+      return "bound";
+    case "released":
+      return "released";
+    case "failed":
+      return "failed";
+    case "pending":
+      return "pending";
+    default:
+      return "available";
+  }
+}
+
+function toPersistentVolumeClaim(p: ServerPersistentVolumeClaim): PersistentVolumeClaim {
+  const name = p.name ?? "pvc";
+  const namespace = p.namespace || undefined;
+  return {
+    kind: "PersistentVolumeClaim",
+    uid: `pvc-${namespace ?? ""}-${name}`,
+    name,
+    namespace,
+    ageSec: p.ageSec ?? 0,
+    capacity: p.capacity ?? "—",
+    accessModes: toAccessModes(p.accessModes),
+    storageClassName: p.storageClassName ?? "—",
+    phase: toPVCPhase(p.phase),
+    volumeName: p.volumeName || undefined,
+  };
+}
+
+function toPersistentVolume(p: ServerPersistentVolume): PersistentVolume {
+  const name = p.name ?? "pv";
+  return {
+    kind: "PersistentVolume",
+    uid: `pv-${name}`,
+    name,
+    ageSec: p.ageSec ?? 0,
+    capacity: p.capacity ?? "—",
+    accessModes: toAccessModes(p.accessModes),
+    reclaimPolicy: p.reclaimPolicy === "Retain" || p.reclaimPolicy === "Recycle" ? p.reclaimPolicy : "Delete",
+    phase: toPVPhase(p.phase),
+    storageClassName: p.storageClassName ?? "—",
+    claimRef: p.claimName
+      ? { namespace: p.claimNamespace ?? "default", name: p.claimName }
+      : undefined,
+  };
+}
+
+function toStorageClass(s: ServerStorageClass): StorageClass {
+  const name = s.name ?? "storageclass";
+  return {
+    kind: "StorageClass",
+    uid: `sc-${name}`,
+    name,
+    ageSec: s.ageSec ?? 0,
+    provisioner: s.provisioner ?? "—",
+    reclaimPolicy: s.reclaimPolicy === "Retain" ? "Retain" : "Delete",
+    volumeBindingMode: s.volumeBindingMode === "WaitForFirstConsumer" ? "WaitForFirstConsumer" : "Immediate",
+    isDefault: !!s.isDefault,
   };
 }
 
@@ -511,28 +889,28 @@ function snapshotToCluster(s: ServerSnapshot): Cluster {
 
     pods,
     deployments: s.deployments ? s.deployments.map(toDeployment) : deriveDeployments(pods),
-    statefulSets: [],
-    daemonSets: [],
-    replicaSets: [],
-    jobs: [],
-    cronJobs: [],
+    statefulSets: (s.statefulSets ?? []).map(toStatefulSet),
+    daemonSets: (s.daemonSets ?? []).map(toDaemonSet),
+    replicaSets: (s.replicaSets ?? []).map(toReplicaSet),
+    jobs: (s.jobs ?? []).map(toJob),
+    cronJobs: (s.cronJobs ?? []).map(toCronJob),
 
     services: (s.services ?? []).map(toService),
-    ingresses: [],
+    ingresses: (s.ingresses ?? []).map(toIngress),
     endpoints: [],
     networkPolicies: [],
 
     configMaps: (s.configMaps ?? []).map(toConfigMap),
-    secrets: [],
+    secrets: (s.secrets ?? []).map(toSecret),
     resourceQuotas: [],
     limitRanges: [],
 
     horizontalPodAutoscalers: [],
     podDisruptionBudgets: [],
 
-    persistentVolumes: [],
-    persistentVolumeClaims: [],
-    storageClasses: [],
+    persistentVolumes: (s.persistentVolumes ?? []).map(toPersistentVolume),
+    persistentVolumeClaims: (s.persistentVolumeClaims ?? []).map(toPersistentVolumeClaim),
+    storageClasses: (s.storageClasses ?? []).map(toStorageClass),
 
     serviceAccounts: [],
     roles: [],

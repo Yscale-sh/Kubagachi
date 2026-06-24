@@ -2,7 +2,7 @@ package k8s
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,7 +11,10 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
+	batchlisters "k8s.io/client-go/listers/batch/v1"
 	listers "k8s.io/client-go/listers/core/v1"
+	networkinglisters "k8s.io/client-go/listers/networking/v1"
+	storagelisters "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/jakenesler/kubagachi/internal/state"
@@ -21,6 +24,12 @@ import (
 // snapshot on every individual change, the watcher coalesces changes and
 // emits at most one snapshot per interval.
 const rebuildInterval = 750 * time.Millisecond
+
+// cacheSyncTimeout bounds how long the watcher waits for informer caches to
+// fill at startup. Past this it proceeds with whatever has synced so the
+// cockpit comes up promptly; the dirty-driven rebuild loop backfills any
+// informer that syncs later.
+const cacheSyncTimeout = 30 * time.Second
 
 // Watcher streams normalized ClusterState snapshots from a live cluster using
 // shared informers over Pods, Nodes and Events, plus the Flux toolkit CRDs
@@ -77,8 +86,18 @@ func (w *Watcher) Run(ctx context.Context, out chan<- state.ClusterState) error 
 	nodeInformer := factory.Core().V1().Nodes()
 	eventInformer := factory.Core().V1().Events()
 	deploymentInformer := factory.Apps().V1().Deployments()
+	statefulSetInformer := factory.Apps().V1().StatefulSets()
+	daemonSetInformer := factory.Apps().V1().DaemonSets()
+	replicaSetInformer := factory.Apps().V1().ReplicaSets()
+	jobInformer := factory.Batch().V1().Jobs()
+	cronJobInformer := factory.Batch().V1().CronJobs()
 	serviceInformer := factory.Core().V1().Services()
+	ingressInformer := factory.Networking().V1().Ingresses()
 	configMapInformer := factory.Core().V1().ConfigMaps()
+	secretInformer := factory.Core().V1().Secrets()
+	pvcInformer := factory.Core().V1().PersistentVolumeClaims()
+	pvInformer := factory.Core().V1().PersistentVolumes()
+	storageClassInformer := factory.Storage().V1().StorageClasses()
 
 	var dirty atomic.Bool
 	dirty.Store(true)
@@ -91,15 +110,31 @@ func (w *Watcher) Run(ctx context.Context, out chan<- state.ClusterState) error 
 	_, _ = nodeInformer.Informer().AddEventHandler(markDirty)
 	_, _ = eventInformer.Informer().AddEventHandler(markDirty)
 	_, _ = deploymentInformer.Informer().AddEventHandler(markDirty)
+	_, _ = statefulSetInformer.Informer().AddEventHandler(markDirty)
+	_, _ = daemonSetInformer.Informer().AddEventHandler(markDirty)
+	_, _ = replicaSetInformer.Informer().AddEventHandler(markDirty)
+	_, _ = jobInformer.Informer().AddEventHandler(markDirty)
+	_, _ = cronJobInformer.Informer().AddEventHandler(markDirty)
 	_, _ = serviceInformer.Informer().AddEventHandler(markDirty)
+	_, _ = ingressInformer.Informer().AddEventHandler(markDirty)
 	_, _ = configMapInformer.Informer().AddEventHandler(markDirty)
+	_, _ = secretInformer.Informer().AddEventHandler(markDirty)
+	_, _ = pvcInformer.Informer().AddEventHandler(markDirty)
+	_, _ = pvInformer.Informer().AddEventHandler(markDirty)
+	_, _ = storageClassInformer.Informer().AddEventHandler(markDirty)
 
 	factory.Start(ctx.Done())
-	for typ, ok := range factory.WaitForCacheSync(ctx.Done()) {
+	// Degrade gracefully: a resource the cluster doesn't serve, or that our
+	// RBAC can't list/watch, must not sink the whole watcher. Wait up to
+	// cacheSyncTimeout, then proceed — any kind that failed to sync simply
+	// renders as an empty list instead of blocking every other resource.
+	syncCtx, cancelSync := context.WithTimeout(ctx, cacheSyncTimeout)
+	for typ, ok := range factory.WaitForCacheSync(syncCtx.Done()) {
 		if !ok {
-			return fmt.Errorf("informer cache failed to sync: %v", typ)
+			log.Printf("kubagachi: informer for %v did not sync within %s; continuing without it", typ, cacheSyncTimeout)
 		}
 	}
+	cancelSync()
 
 	// Flux: discover the toolkit CRDs once, then keep a cached listing fresh
 	// on a relaxed poll. Flux state changes mark the snapshot dirty like any
@@ -162,7 +197,10 @@ func (w *Watcher) Run(ctx context.Context, out chan<- state.ClusterState) error 
 	emit := func() {
 		snap := w.build(
 			podInformer.Lister(), nodeInformer.Lister(), eventInformer.Lister(),
-			deploymentInformer.Lister(), serviceInformer.Lister(), configMapInformer.Lister(),
+			deploymentInformer.Lister(), statefulSetInformer.Lister(), daemonSetInformer.Lister(),
+			replicaSetInformer.Lister(), jobInformer.Lister(), cronJobInformer.Lister(),
+			serviceInformer.Lister(), ingressInformer.Lister(), configMapInformer.Lister(),
+			secretInformer.Lister(), pvcInformer.Lister(), pvInformer.Lister(), storageClassInformer.Lister(),
 		)
 		snap.FluxInstalled = len(w.fluxResources) > 0
 		fluxMu.RLock()
@@ -212,7 +250,12 @@ func fluxEqual(a, b []state.FluxView) bool {
 
 func (w *Watcher) build(
 	podL listers.PodLister, nodeL listers.NodeLister, eventL listers.EventLister,
-	deploymentL appslisters.DeploymentLister, serviceL listers.ServiceLister, configMapL listers.ConfigMapLister,
+	deploymentL appslisters.DeploymentLister, statefulSetL appslisters.StatefulSetLister,
+	daemonSetL appslisters.DaemonSetLister, replicaSetL appslisters.ReplicaSetLister,
+	jobL batchlisters.JobLister, cronJobL batchlisters.CronJobLister,
+	serviceL listers.ServiceLister, ingressL networkinglisters.IngressLister, configMapL listers.ConfigMapLister,
+	secretL listers.SecretLister, pvcL listers.PersistentVolumeClaimLister,
+	pvL listers.PersistentVolumeLister, storageClassL storagelisters.StorageClassLister,
 ) state.ClusterState {
 	snap := state.ClusterState{
 		ClusterName:   w.clusterName,
@@ -234,13 +277,53 @@ func (w *Watcher) build(
 	for _, d := range deployments {
 		snap.Deployments = append(snap.Deployments, MapDeployment(d))
 	}
+	statefulSets, _ := statefulSetL.List(labels.Everything())
+	for _, s := range statefulSets {
+		snap.StatefulSets = append(snap.StatefulSets, MapStatefulSet(s))
+	}
+	daemonSets, _ := daemonSetL.List(labels.Everything())
+	for _, d := range daemonSets {
+		snap.DaemonSets = append(snap.DaemonSets, MapDaemonSet(d))
+	}
+	replicaSets, _ := replicaSetL.List(labels.Everything())
+	for _, r := range replicaSets {
+		snap.ReplicaSets = append(snap.ReplicaSets, MapReplicaSet(r))
+	}
+	jobs, _ := jobL.List(labels.Everything())
+	for _, j := range jobs {
+		snap.Jobs = append(snap.Jobs, MapJob(j))
+	}
+	cronJobs, _ := cronJobL.List(labels.Everything())
+	for _, c := range cronJobs {
+		snap.CronJobs = append(snap.CronJobs, MapCronJob(c))
+	}
 	services, _ := serviceL.List(labels.Everything())
 	for _, s := range services {
 		snap.Services = append(snap.Services, MapService(s))
 	}
+	ingresses, _ := ingressL.List(labels.Everything())
+	for _, i := range ingresses {
+		snap.Ingresses = append(snap.Ingresses, MapIngress(i))
+	}
 	configMaps, _ := configMapL.List(labels.Everything())
 	for _, c := range configMaps {
 		snap.ConfigMaps = append(snap.ConfigMaps, MapConfigMap(c))
+	}
+	secrets, _ := secretL.List(labels.Everything())
+	for _, s := range secrets {
+		snap.Secrets = append(snap.Secrets, MapSecret(s))
+	}
+	pvcs, _ := pvcL.List(labels.Everything())
+	for _, p := range pvcs {
+		snap.PersistentVolumeClaims = append(snap.PersistentVolumeClaims, MapPersistentVolumeClaim(p))
+	}
+	pvs, _ := pvL.List(labels.Everything())
+	for _, p := range pvs {
+		snap.PersistentVolumes = append(snap.PersistentVolumes, MapPersistentVolume(p))
+	}
+	storageClasses, _ := storageClassL.List(labels.Everything())
+	for _, s := range storageClasses {
+		snap.StorageClasses = append(snap.StorageClasses, MapStorageClass(s))
 	}
 
 	// Merge the latest usage sample (under lock) before Rebuild copies pods

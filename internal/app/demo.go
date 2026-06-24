@@ -169,9 +169,39 @@ func (s demoSource) build() state.ClusterState {
 			cs.Deployments = append(cs.Deployments, d)
 		}
 	}
+	for _, s := range demoStatefulSets() {
+		if nsAllowed(s.Namespace) {
+			cs.StatefulSets = append(cs.StatefulSets, s)
+		}
+	}
+	for _, d := range demoDaemonSets() {
+		if nsAllowed(d.Namespace) {
+			cs.DaemonSets = append(cs.DaemonSets, d)
+		}
+	}
+	for _, r := range demoReplicaSets() {
+		if nsAllowed(r.Namespace) {
+			cs.ReplicaSets = append(cs.ReplicaSets, r)
+		}
+	}
+	for _, j := range demoJobs() {
+		if nsAllowed(j.Namespace) {
+			cs.Jobs = append(cs.Jobs, j)
+		}
+	}
+	for _, c := range demoCronJobs() {
+		if nsAllowed(c.Namespace) {
+			cs.CronJobs = append(cs.CronJobs, c)
+		}
+	}
 	for _, sv := range demoServices() {
 		if nsAllowed(sv.Namespace) {
 			cs.Services = append(cs.Services, sv)
+		}
+	}
+	for _, i := range demoIngresses() {
+		if nsAllowed(i.Namespace) {
+			cs.Ingresses = append(cs.Ingresses, i)
 		}
 	}
 	for _, cm := range demoConfigMaps() {
@@ -179,6 +209,18 @@ func (s demoSource) build() state.ClusterState {
 			cs.ConfigMaps = append(cs.ConfigMaps, cm)
 		}
 	}
+	for _, s := range demoSecrets() {
+		if nsAllowed(s.Namespace) {
+			cs.Secrets = append(cs.Secrets, s)
+		}
+	}
+	for _, p := range demoPersistentVolumeClaims() {
+		if nsAllowed(p.Namespace) {
+			cs.PersistentVolumeClaims = append(cs.PersistentVolumeClaims, p)
+		}
+	}
+	cs.PersistentVolumes = demoPersistentVolumes()
+	cs.StorageClasses = demoStorageClasses()
 
 	cs.Rebuild()
 	return cs
@@ -205,6 +247,53 @@ func demoDeployments() []state.DeploymentView {
 		mk("kube-system", "metrics-server", 1, 0, "registry.k8s.io/metrics-server/metrics-server:v0.7.1", "k8s-app=metrics-server", 18),
 		mk("monitoring", "grafana", 1, 1, "grafana/grafana:10.4.2", "app=grafana", 2600),
 		mk("monitoring", "prometheus", 1, 1, "prom/prometheus:v2.51.0", "app=prometheus", 2600),
+	}
+}
+
+func demoStatefulSets() []state.StatefulSetView {
+	return []state.StatefulSetView{
+		{Name: "cache-redis", Namespace: "default", Replicas: 2, ReadyReplicas: 1, ServiceName: "cache-redis",
+			Image: "redis:7.2-alpine", Age: demoAge(4300), AgeSeconds: 4300 * 60},
+		{Name: "prometheus", Namespace: "monitoring", Replicas: 1, ReadyReplicas: 1, ServiceName: "prometheus",
+			Image: "prom/prometheus:v2.51.0", Age: demoAge(2600), AgeSeconds: 2600 * 60},
+	}
+}
+
+func demoDaemonSets() []state.DaemonSetView {
+	return []state.DaemonSetView{
+		{Name: "kube-proxy", Namespace: "kube-system", DesiredNumberScheduled: 3, NumberReady: 3, NumberAvailable: 3,
+			Image: "registry.k8s.io/kube-proxy:v1.30.0", Age: demoAge(5000), AgeSeconds: 5000 * 60},
+		{Name: "node-exporter", Namespace: "monitoring", DesiredNumberScheduled: 3, NumberReady: 2, NumberAvailable: 2,
+			Image: "quay.io/prometheus/node-exporter:v1.8.0", Age: demoAge(2600), AgeSeconds: 2600 * 60},
+	}
+}
+
+func demoReplicaSets() []state.ReplicaSetView {
+	return []state.ReplicaSetView{
+		{Name: "web-frontend-7d9c", Namespace: "default", Replicas: 3, ReadyReplicas: 3, OwnerKind: "Deployment", OwnerName: "web-frontend",
+			Image: "ghcr.io/acme/web-frontend:1.8.2", Age: demoAge(320), AgeSeconds: 320 * 60},
+		{Name: "api-gateway-58f4", Namespace: "default", Replicas: 3, ReadyReplicas: 2, OwnerKind: "Deployment", OwnerName: "api-gateway",
+			Image: "ghcr.io/acme/api-gateway:2.1.0", Age: demoAge(1500), AgeSeconds: 1500 * 60},
+	}
+}
+
+func demoJobs() []state.JobView {
+	return []state.JobView{
+		{Name: "batch-report-30", Namespace: "default", Completions: 1, Succeeded: 1, Status: "completed",
+			Image: "ghcr.io/acme/batch-report:3.0.1", DurationSec: 180, Age: demoAge(30), AgeSeconds: 30 * 60},
+		{Name: "migration-runner", Namespace: "default", Completions: 1, Failed: 1, Status: "failed",
+			Image: "ghcr.io/acme/migrations:2.4.0", DurationSec: 75, Age: demoAge(25), AgeSeconds: 25 * 60},
+	}
+}
+
+func demoCronJobs() []state.CronJobView {
+	return []state.CronJobView{
+		{Name: "batch-report", Namespace: "default", Schedule: "*/30 * * * *", ActiveJobs: 0, Status: "active",
+			Image: "ghcr.io/acme/batch-report:3.0.1", HasLastSchedule: true, LastScheduleAgeSec: 30 * 60,
+			Age: demoAge(1440), AgeSeconds: 1440 * 60},
+		{Name: "db-backup", Namespace: "monitoring", Schedule: "0 3 * * *", Suspend: true, Status: "suspended",
+			Image: "ghcr.io/acme/db-backup:1.2.0", HasLastSchedule: true, LastScheduleAgeSec: 9 * 3600,
+			Age: demoAge(2600), AgeSeconds: 2600 * 60},
 	}
 }
 
@@ -236,6 +325,17 @@ func demoServices() []state.ServiceView {
 	}
 }
 
+func demoIngresses() []state.IngressView {
+	return []state.IngressView{
+		{Name: "web-frontend", Namespace: "default", ClassName: "nginx", Hosts: []string{"app.demo.local"},
+			Rules: []state.IngressRuleView{{Host: "app.demo.local", Path: "/", ServiceName: "web-frontend", ServicePort: 80}},
+			TLS:   true, Address: "203.0.113.20", Age: demoAge(320), AgeSeconds: 320 * 60},
+		{Name: "grafana", Namespace: "monitoring", ClassName: "nginx", Hosts: []string{"grafana.demo.local"},
+			Rules: []state.IngressRuleView{{Host: "grafana.demo.local", Path: "/", ServiceName: "grafana", ServicePort: 3000}},
+			TLS:   false, Address: "203.0.113.21", Age: demoAge(2600), AgeSeconds: 2600 * 60},
+	}
+}
+
 // demoConfigMaps fakes a few config maps so the ConfigMaps tab is explorable.
 func demoConfigMaps() []state.ConfigMapView {
 	return []state.ConfigMapView{
@@ -249,6 +349,46 @@ func demoConfigMaps() []state.ConfigMapView {
 			DataBytes: 1890, Age: demoAge(5000), AgeSeconds: 5000 * 60},
 		{Name: "grafana-dashboards", Namespace: "monitoring", Keys: []string{"cluster.json", "nodes.json", "pods.json"},
 			DataBytes: 40960, Age: demoAge(2600), AgeSeconds: 2600 * 60},
+	}
+}
+
+func demoSecrets() []state.SecretView {
+	return []state.SecretView{
+		{Name: "web-tls", Namespace: "default", Type: "kubernetes.io/tls", Keys: []string{"tls.crt", "tls.key"},
+			DataBytes: 4096, Age: demoAge(320), AgeSeconds: 320 * 60},
+		{Name: "registry-creds", Namespace: "default", Type: "kubernetes.io/dockerconfigjson", Keys: []string{".dockerconfigjson"},
+			DataBytes: 1220, Age: demoAge(1500), AgeSeconds: 1500 * 60},
+		{Name: "grafana-admin", Namespace: "monitoring", Type: "Opaque", Keys: []string{"admin-user", "admin-password"},
+			DataBytes: 64, Age: demoAge(2600), AgeSeconds: 2600 * 60},
+	}
+}
+
+func demoPersistentVolumeClaims() []state.PersistentVolumeClaimView {
+	return []state.PersistentVolumeClaimView{
+		{Name: "redis-data-cache-redis-0", Namespace: "default", Capacity: "10Gi", AccessModes: []string{"ReadWriteOnce"},
+			StorageClassName: "fast-ssd", Phase: "bound", VolumeName: "pv-redis-0", Age: demoAge(4300), AgeSeconds: 4300 * 60},
+		{Name: "prometheus-data-prometheus-0", Namespace: "monitoring", Capacity: "50Gi", AccessModes: []string{"ReadWriteOnce"},
+			StorageClassName: "standard", Phase: "bound", VolumeName: "pv-prometheus-0", Age: demoAge(2600), AgeSeconds: 2600 * 60},
+	}
+}
+
+func demoPersistentVolumes() []state.PersistentVolumeView {
+	return []state.PersistentVolumeView{
+		{Name: "pv-redis-0", Capacity: "10Gi", AccessModes: []string{"ReadWriteOnce"}, ReclaimPolicy: "Delete",
+			Phase: "bound", StorageClassName: "fast-ssd", ClaimNamespace: "default", ClaimName: "redis-data-cache-redis-0",
+			Age: demoAge(4300), AgeSeconds: 4300 * 60},
+		{Name: "pv-prometheus-0", Capacity: "50Gi", AccessModes: []string{"ReadWriteOnce"}, ReclaimPolicy: "Retain",
+			Phase: "bound", StorageClassName: "standard", ClaimNamespace: "monitoring", ClaimName: "prometheus-data-prometheus-0",
+			Age: demoAge(2600), AgeSeconds: 2600 * 60},
+	}
+}
+
+func demoStorageClasses() []state.StorageClassView {
+	return []state.StorageClassView{
+		{Name: "standard", Provisioner: "kubernetes.io/no-provisioner", ReclaimPolicy: "Retain",
+			VolumeBindingMode: "WaitForFirstConsumer", IsDefault: true, Age: demoAge(5000), AgeSeconds: 5000 * 60},
+		{Name: "fast-ssd", Provisioner: "kubernetes.io/no-provisioner", ReclaimPolicy: "Delete",
+			VolumeBindingMode: "Immediate", Age: demoAge(4300), AgeSeconds: 4300 * 60},
 	}
 }
 

@@ -17,19 +17,29 @@ type SummaryView struct {
 // ClusterState is the single normalized snapshot the TUI renders. Every
 // refresh (real or demo) produces a fresh ClusterState.
 type ClusterState struct {
-	ClusterName      string
-	Namespace        string
-	AllNamespaces    bool
-	Nodes            []NodeView
-	Pods             []PodView
-	Events           []EventView
-	Flux             []FluxView
-	Deployments      []DeploymentView
-	Services         []ServiceView
-	ConfigMaps       []ConfigMapView
-	FluxInstalled    bool
-	MetricsInstalled bool
-	Summary          SummaryView
+	ClusterName            string
+	Namespace              string
+	AllNamespaces          bool
+	Nodes                  []NodeView
+	Pods                   []PodView
+	Events                 []EventView
+	Flux                   []FluxView
+	Deployments            []DeploymentView
+	StatefulSets           []StatefulSetView
+	DaemonSets             []DaemonSetView
+	ReplicaSets            []ReplicaSetView
+	Jobs                   []JobView
+	CronJobs               []CronJobView
+	Services               []ServiceView
+	Ingresses              []IngressView
+	ConfigMaps             []ConfigMapView
+	Secrets                []SecretView
+	PersistentVolumeClaims []PersistentVolumeClaimView
+	PersistentVolumes      []PersistentVolumeView
+	StorageClasses         []StorageClassView
+	FluxInstalled          bool
+	MetricsInstalled       bool
+	Summary                SummaryView
 }
 
 // Rebuild recomputes derived data: it groups pods under their nodes, sorts
@@ -61,17 +71,71 @@ func (c *ClusterState) Rebuild() {
 		}
 		return c.Deployments[i].Name < c.Deployments[j].Name
 	})
+	sort.Slice(c.StatefulSets, func(i, j int) bool {
+		if c.StatefulSets[i].Namespace != c.StatefulSets[j].Namespace {
+			return c.StatefulSets[i].Namespace < c.StatefulSets[j].Namespace
+		}
+		return c.StatefulSets[i].Name < c.StatefulSets[j].Name
+	})
+	sort.Slice(c.DaemonSets, func(i, j int) bool {
+		if c.DaemonSets[i].Namespace != c.DaemonSets[j].Namespace {
+			return c.DaemonSets[i].Namespace < c.DaemonSets[j].Namespace
+		}
+		return c.DaemonSets[i].Name < c.DaemonSets[j].Name
+	})
+	sort.Slice(c.ReplicaSets, func(i, j int) bool {
+		if c.ReplicaSets[i].Namespace != c.ReplicaSets[j].Namespace {
+			return c.ReplicaSets[i].Namespace < c.ReplicaSets[j].Namespace
+		}
+		return c.ReplicaSets[i].Name < c.ReplicaSets[j].Name
+	})
+	sort.Slice(c.Jobs, func(i, j int) bool {
+		if c.Jobs[i].Namespace != c.Jobs[j].Namespace {
+			return c.Jobs[i].Namespace < c.Jobs[j].Namespace
+		}
+		return c.Jobs[i].Name < c.Jobs[j].Name
+	})
+	sort.Slice(c.CronJobs, func(i, j int) bool {
+		if c.CronJobs[i].Namespace != c.CronJobs[j].Namespace {
+			return c.CronJobs[i].Namespace < c.CronJobs[j].Namespace
+		}
+		return c.CronJobs[i].Name < c.CronJobs[j].Name
+	})
 	sort.Slice(c.Services, func(i, j int) bool {
 		if c.Services[i].Namespace != c.Services[j].Namespace {
 			return c.Services[i].Namespace < c.Services[j].Namespace
 		}
 		return c.Services[i].Name < c.Services[j].Name
 	})
+	sort.Slice(c.Ingresses, func(i, j int) bool {
+		if c.Ingresses[i].Namespace != c.Ingresses[j].Namespace {
+			return c.Ingresses[i].Namespace < c.Ingresses[j].Namespace
+		}
+		return c.Ingresses[i].Name < c.Ingresses[j].Name
+	})
 	sort.Slice(c.ConfigMaps, func(i, j int) bool {
 		if c.ConfigMaps[i].Namespace != c.ConfigMaps[j].Namespace {
 			return c.ConfigMaps[i].Namespace < c.ConfigMaps[j].Namespace
 		}
 		return c.ConfigMaps[i].Name < c.ConfigMaps[j].Name
+	})
+	sort.Slice(c.Secrets, func(i, j int) bool {
+		if c.Secrets[i].Namespace != c.Secrets[j].Namespace {
+			return c.Secrets[i].Namespace < c.Secrets[j].Namespace
+		}
+		return c.Secrets[i].Name < c.Secrets[j].Name
+	})
+	sort.Slice(c.PersistentVolumeClaims, func(i, j int) bool {
+		if c.PersistentVolumeClaims[i].Namespace != c.PersistentVolumeClaims[j].Namespace {
+			return c.PersistentVolumeClaims[i].Namespace < c.PersistentVolumeClaims[j].Namespace
+		}
+		return c.PersistentVolumeClaims[i].Name < c.PersistentVolumeClaims[j].Name
+	})
+	sort.Slice(c.PersistentVolumes, func(i, j int) bool {
+		return c.PersistentVolumes[i].Name < c.PersistentVolumes[j].Name
+	})
+	sort.Slice(c.StorageClasses, func(i, j int) bool {
+		return c.StorageClasses[i].Name < c.StorageClasses[j].Name
 	})
 
 	byNode := map[string][]PodView{}
