@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { GitMerge, Pause, Play, RefreshCw, X } from "lucide-react";
+import { GitMerge, Network, Pause, Play, RefreshCw, Table2, X } from "lucide-react";
 import type { FluxObject } from "../lib/types";
 import { fluxAction, type FluxActionKind } from "../lib/cluster-api";
 import { registerRowNav, clearRowNav, type RowNavRegistration } from "../lib/row-nav";
@@ -22,8 +22,19 @@ import {
   workspaceActions,
 } from "../store/workspace";
 import ConfirmButton from "./ConfirmButton";
+import FluxGraph from "./FluxGraph";
 
 export type FluxFilter = "all" | "kustomizations" | "helmreleases" | "sources";
+
+/** table = the resource list; graph = the layered dependency DAG. */
+type ViewMode = "table" | "graph";
+
+const FLUX_FILTERS: { id: FluxFilter; label: string }[] = [
+  { id: "all", label: "all" },
+  { id: "kustomizations", label: "kustomizations" },
+  { id: "helmreleases", label: "helmreleases" },
+  { id: "sources", label: "sources" },
+];
 
 const SOURCE_KINDS: ReadonlySet<string> = new Set([
   "GitRepository",
@@ -54,13 +65,18 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return false;
 }
 
-export default function FluxTab({ filter = "all" }: { filter?: FluxFilter }) {
+export default function FluxTab({ filter: filterProp = "all" }: { filter?: FluxFilter }) {
   const cluster = useCluster();
   const namespace = useNamespace();
   const search = useSearch();
   const selectedRow = useSelectedRow();
   const [detailUid, setDetailUid] = useState<string | null>(null);
   const [pendingUid, setPendingUid] = useState<string | null>(null);
+  // The kind filter starts from the tab (sidebar) but the in-header chips can
+  // override it; re-sync when the routed tab changes.
+  const [filter, setFilter] = useState<FluxFilter>(filterProp);
+  const [view, setView] = useState<ViewMode>("table");
+  useEffect(() => setFilter(filterProp), [filterProp]);
 
   const objects = useMemo<FluxObject[]>(() => {
     if (!cluster) return [];
@@ -150,19 +166,44 @@ export default function FluxTab({ filter = "all" }: { filter?: FluxFilter }) {
     );
   }
 
-  if (objects.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-text-muted gap-2">
-        <GitMerge className="w-6 h-6 opacity-50" />
-        <div className="text-xs">no flux objects in the selected scope.</div>
-      </div>
-    );
-  }
-
   const detail = detailUid ? objects.find((o) => o.uid === detailUid) ?? null : null;
+  const empty = objects.length === 0;
+  const allNamespaces = !namespace || namespace === "all";
 
   return (
     <div className="relative font-mono">
+      {/* Sub-header: kind filter chips + table|graph view toggle. Both views
+          honour the same chip + the namespace/search scope from the store. */}
+      <div className="flex items-center gap-2 flex-wrap px-3 py-2 border-b border-border bg-bg-panel">
+        <div className="flex items-center gap-1">
+          {FLUX_FILTERS.map((f) => (
+            <FilterChip
+              key={f.id}
+              label={f.label}
+              active={filter === f.id}
+              onClick={() => setFilter(f.id)}
+            />
+          ))}
+        </div>
+        <div className="ml-auto flex items-center gap-2.5">
+          {view === "graph" && !empty && <GraphLegend />}
+          <ViewToggle view={view} onChange={setView} />
+        </div>
+      </div>
+
+      {empty ? (
+        <div className="flex flex-col items-center justify-center py-16 text-text-muted gap-2">
+          <GitMerge className="w-6 h-6 opacity-50" />
+          <div className="text-xs">no flux objects in the selected scope.</div>
+        </div>
+      ) : view === "graph" ? (
+        <FluxGraph
+          objects={objects}
+          clustered={allNamespaces}
+          selectedUid={detailUid}
+          onSelect={setDetailUid}
+        />
+      ) : (
       <table className="w-full text-[12px] border-separate border-spacing-0">
         <thead className="sticky top-0 z-10 bg-bg-panel">
           <tr>
@@ -225,8 +266,9 @@ export default function FluxTab({ filter = "all" }: { filter?: FluxFilter }) {
           })}
         </tbody>
       </table>
+      )}
 
-      {/* Detail side panel */}
+      {/* Detail side panel — shared by table + graph. */}
       {detail && (
         <FluxDetailPanel
           obj={detail}
@@ -250,6 +292,86 @@ function Th({ children, className }: { children: React.ReactNode; className?: st
     >
       {children}
     </th>
+  );
+}
+
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={CHIP_BASE + (active ? CHIP_ARMED : CHIP_IDLE)}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ViewToggle({
+  view,
+  onChange,
+}: {
+  view: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) {
+  const seg = (id: ViewMode, label: string, icon: React.ReactNode) => (
+    <button
+      type="button"
+      onClick={() => onChange(id)}
+      aria-pressed={view === id}
+      className={
+        "inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] transition-colors " +
+        (view === id
+          ? "bg-accent-dim text-accent"
+          : "text-text-muted hover:text-text")
+      }
+    >
+      {icon}
+      {label}
+    </button>
+  );
+  return (
+    <div className="inline-flex items-center border border-border k9s-square overflow-hidden">
+      {seg("table", "table", <Table2 size={12} />)}
+      <span className="w-px self-stretch bg-border" aria-hidden="true" />
+      {seg("graph", "graph", <Network size={12} />)}
+    </div>
+  );
+}
+
+function GraphLegend() {
+  return (
+    <div className="hidden md:flex items-center gap-3 text-[10px] text-text-muted/80 font-mono">
+      <span className="inline-flex items-center gap-1.5">
+        <svg width="20" height="6" aria-hidden="true">
+          <line x1="0" y1="3" x2="20" y2="3" stroke="#3a3a3a" strokeWidth="1.6" />
+        </svg>
+        source
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <svg width="20" height="6" aria-hidden="true">
+          <line
+            x1="0"
+            y1="3"
+            x2="20"
+            y2="3"
+            stroke="#3a3a3a"
+            strokeWidth="1.6"
+            strokeDasharray="5 4"
+          />
+        </svg>
+        dependsOn
+      </span>
+    </div>
   );
 }
 
@@ -416,6 +538,20 @@ function FluxDetailPanel({
             <Kv k="ready" v={<ReadyBadge obj={obj} />} />
             <Kv k="revision" v={<code className="break-all">{obj.revision}</code>} />
             <Kv k="source" v={obj.source || "—"} />
+            {obj.dependsOn.length > 0 && (
+              <Kv
+                k="depends on"
+                v={
+                  <span className="flex flex-col gap-0.5">
+                    {obj.dependsOn.map((d) => (
+                      <code key={d} className="break-all">
+                        {d}
+                      </code>
+                    ))}
+                  </span>
+                }
+              />
+            )}
             <Kv k="age" v={obj.age} />
             <Kv k="suspended" v={obj.suspended ? "true" : "false"} />
           </dl>

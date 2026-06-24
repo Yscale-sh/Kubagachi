@@ -461,6 +461,8 @@ export interface FluxObject {
   suspended: boolean;
   revision: string;
   source: string;
+  /** Ordering dependencies as "namespace/name" (from spec.dependsOn). */
+  dependsOn: string[];
   message: string;
   age: string;
 }

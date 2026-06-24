@@ -11,7 +11,8 @@ type FluxView struct {
 	Ready     string // True | False | Unknown | "-"
 	Suspended bool
 	Revision  string
-	Source    string // e.g. "GitRepository/flux-system"
+	Source    string   // e.g. "GitRepository/flux-system"
+	DependsOn []string // ordering deps as "namespace/name" (spec.dependsOn)
 	Message   string
 	Age       string
 }

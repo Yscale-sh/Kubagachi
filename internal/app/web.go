@@ -85,10 +85,11 @@ type webFlux struct {
 	Namespace string `json:"namespace"`
 	Ready     string `json:"ready"`
 	Suspended bool   `json:"suspended"`
-	Revision  string `json:"revision,omitempty"`
-	Source    string `json:"source,omitempty"`
-	Message   string `json:"message,omitempty"`
-	Age       string `json:"age"`
+	Revision  string   `json:"revision,omitempty"`
+	Source    string   `json:"source,omitempty"`
+	DependsOn []string `json:"dependsOn,omitempty"`
+	Message   string   `json:"message,omitempty"`
+	Age       string   `json:"age"`
 }
 
 type webDeployment struct {
@@ -387,7 +388,7 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 		snap.Flux = append(snap.Flux, webFlux{
 			Kind: f.Kind, Name: f.Name, Namespace: f.Namespace,
 			Ready: f.Ready, Suspended: f.Suspended, Revision: f.Revision,
-			Source: f.Source, Message: f.Message, Age: f.Age,
+			Source: f.Source, DependsOn: f.DependsOn, Message: f.Message, Age: f.Age,
 		})
 	}
 	for _, d := range cs.Deployments {

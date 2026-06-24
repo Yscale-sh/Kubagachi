@@ -31,9 +31,18 @@ import {
 } from "../store/workspace";
 import HabitatDashboard from "./HabitatDashboard";
 import EventsView from "./EventsView";
+import FluxTab, { type FluxFilter } from "./FluxTab";
 import KubagachiTab from "./KubagachiTab";
 import PodList from "./PodList";
 import ResourceList from "./ResourceList";
+
+/** Flux tab kinds map onto a FluxTab kind-filter. */
+const FLUX_TAB_FILTER: Record<string, FluxFilter> = {
+  flux: "all",
+  "flux-kustomizations": "kustomizations",
+  "flux-helmreleases": "helmreleases",
+  "flux-sources": "sources",
+};
 
 const RESOURCE_KINDS = [
   "Pod",
@@ -159,6 +168,8 @@ function renderBody(tab: Tab): React.ReactNode {
   if (tab.kind === "events") return <EventsView />;
   if (tab.kind === "search") return <SearchView />;
   if (tab.kind === "kubagachi") return <KubagachiTab />;
+  const fluxFilter = FLUX_TAB_FILTER[tab.kind];
+  if (fluxFilter) return <FluxTab filter={fluxFilter} />;
   if (tab.kind === "Pod") return <PodList />;
   if (RESOURCE_SET.has(tab.kind)) {
     return <ResourceList kind={tab.kind as Exclude<AnyResourceKind, "Pod">} />;

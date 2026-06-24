@@ -20,3 +20,6 @@ web/node_modules/
 
 # cartogopher index cache (regenerated tooling artifacts)
 bakes/
+
+# tsc incremental build cache
+*.tsbuildinfo

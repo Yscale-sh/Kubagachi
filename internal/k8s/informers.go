@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"log"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -238,10 +239,13 @@ func fluxEqual(a, b []state.FluxView) bool {
 		return false
 	}
 	for i := range a {
-		// Age churns every poll; compare everything else.
+		// Age churns every poll; compare everything else. FluxView holds a
+		// slice (DependsOn) so it is no longer comparable with ==.
 		x, y := a[i], b[i]
-		x.Age, y.Age = "", ""
-		if x != y {
+		if x.Kind != y.Kind || x.Name != y.Name || x.Namespace != y.Namespace ||
+			x.Ready != y.Ready || x.Suspended != y.Suspended || x.Revision != y.Revision ||
+			x.Source != y.Source || x.Message != y.Message ||
+			!slices.Equal(x.DependsOn, y.DependsOn) {
 			return false
 		}
 	}

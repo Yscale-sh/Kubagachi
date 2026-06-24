@@ -120,6 +120,7 @@ interface ServerFlux {
   suspended?: boolean;
   revision?: string;
   source?: string;
+  dependsOn?: string[];
   message?: string;
   age?: string;
 }
@@ -507,6 +508,7 @@ function toFlux(f: ServerFlux): FluxObject {
     suspended: !!f.suspended,
     revision: f.revision ?? "—",
     source: f.source ?? "—",
+    dependsOn: f.dependsOn ?? [],
     message: f.message ?? "",
     age: f.age ?? "—",
   };

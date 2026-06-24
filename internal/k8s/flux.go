@@ -153,6 +153,28 @@ func mapFluxObject(kind string, u *unstructured.Unstructured) state.FluxView {
 			break
 		}
 	}
+
+	// dependsOn ordering edges: Kustomization and HelmRelease both expose
+	// spec.dependsOn as a list of {name, namespace} refs. A missing namespace
+	// defaults to the object's own namespace. Stored as "namespace/name" so the
+	// graph view can resolve each dependency back to a node.
+	if deps, found, _ := unstructured.NestedSlice(u.Object, "spec", "dependsOn"); found {
+		for _, d := range deps {
+			dm, ok := d.(map[string]any)
+			if !ok {
+				continue
+			}
+			name, _ := dm["name"].(string)
+			if name == "" {
+				continue
+			}
+			ns, _ := dm["namespace"].(string)
+			if ns == "" {
+				ns = fv.Namespace
+			}
+			fv.DependsOn = append(fv.DependsOn, ns+"/"+name)
+		}
+	}
 	return fv
 }
 
