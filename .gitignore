@@ -16,3 +16,4 @@ web/node_modules/
 # editor / OS
 .DS_Store
 *.swp
+.mission/

@@ -178,7 +178,7 @@ export default function TabsBar() {
     >
       <div
         ref={scrollerRef}
-        className="flex items-stretch overflow-x-auto scrollbar-thin flex-1 min-w-0"
+        className="relative flex items-stretch overflow-x-auto scrollbar-thin flex-1 min-w-0"
       >
         {tabs.map((tab) => {
           const Icon = iconForKind(tab.kind);
@@ -249,6 +249,10 @@ export default function TabsBar() {
             </div>
           );
         })}
+        <div
+          className="pointer-events-none sticky right-0 z-10 -ml-8 h-full w-8 shrink-0 bg-gradient-to-l from-bg-panel via-bg-panel/90 to-transparent"
+          aria-hidden="true"
+        />
       </div>
 
       {/* "+" new tab */}

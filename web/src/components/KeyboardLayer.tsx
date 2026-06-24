@@ -8,6 +8,7 @@
  *   g / G    jump to top / bottom
  *   esc      close drawer / palette / help
  *   ?        keybindings help overlay
+ *   [ / ]    switch to previous / next tab
  *
  * Keys are ignored while typing in inputs/selects/textareas (including the
  * xterm terminal, which uses a hidden textarea).
@@ -15,10 +16,12 @@
 
 import { useEffect } from "react";
 import {
+  useActiveTab,
   useHelpOpen,
   usePaletteOpen,
   useSelectedRow,
   useSelection,
+  useTabs,
   workspaceActions,
 } from "../store/workspace";
 import { getRowNav, rowNavCount, scrollSelectedRowIntoView } from "../lib/row-nav";
@@ -39,6 +42,8 @@ export default function KeyboardLayer() {
   const helpOpen = useHelpOpen();
   const selection = useSelection();
   const selectedRow = useSelectedRow();
+  const tabs = useTabs();
+  const activeTabId = useActiveTab();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -62,6 +67,17 @@ export default function KeyboardLayer() {
         case "?": {
           e.preventDefault();
           workspaceActions.setHelpOpen(!helpOpen);
+          return;
+        }
+        case "[":
+        case "]": {
+          if (tabs.length <= 1) return;
+          e.preventDefault();
+          const activeIndex = tabs.findIndex((tab) => tab.id === activeTabId);
+          const currentIndex = activeIndex >= 0 ? activeIndex : 0;
+          const direction = e.key === "]" ? 1 : -1;
+          const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
+          workspaceActions.setActiveTab(tabs[nextIndex].id);
           return;
         }
         case "Escape": {
@@ -126,7 +142,7 @@ export default function KeyboardLayer() {
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [paletteOpen, helpOpen, selection, selectedRow]);
+  }, [paletteOpen, helpOpen, selection, selectedRow, tabs, activeTabId]);
 
   return null;
 }
