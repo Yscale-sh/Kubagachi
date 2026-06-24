@@ -1,0 +1,33 @@
+# kubagachi — Kubernetes cockpit (pods as pixel-art critters).
+# Dev deploy: live-cluster mode driven by the KUBECONFIG_DATA secret (the
+# entrypoint materializes it to a kubeconfig). Until that secret is set the
+# container serves --demo, so the route is live immediately.
+#
+#   idpctl render --env dev --root ~/idp -f deploy.yaml --image ghcr.io/jakenesler/kubagachi:<sha7>
+app: kubagachi
+
+runtime:
+  image: ghcr.io/jakenesler/kubagachi   # tag supplied by `idpctl render --image`
+  port: 8080
+
+routes:
+  - host: kubagachi
+    public: true
+
+sizing:
+  profile: minimal
+  replicas: 1
+
+# A kubeconfig (its token carries cluster-read access) injected as a secret;
+# the entrypoint writes it to a file and points KUBECONFIG at it. Dev gets a
+# placeholder until the real value is set in the dev secret store.
+secrets:
+  - KUBECONFIG_DATA
+
+# TCP probe: the binary serves immediately (demo) and stays up before the
+# kubeconfig secret is wired, so port-open is the honest readiness signal.
+probes:
+  type: tcp
+
+build:
+  dockerfile: Dockerfile
