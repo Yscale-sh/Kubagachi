@@ -6,9 +6,9 @@
 node_modules/
 web/node_modules/
 
-# go build artifacts
+# go build artifacts (binary at repo root only — do NOT ignore cmd/kubagachi/,
+# which is the main package source)
 /kubagachi
-/cmd/**/kubagachi
 *.test
 *.out
 *.prof
