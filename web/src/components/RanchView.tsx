@@ -84,7 +84,7 @@ export default function RanchView({
   onSelectPod,
 }: RanchViewProps) {
   return (
-    <div className="flex flex-col gap-3 sm:gap-4 pt-1 pb-4">
+    <div className="grid gap-3 sm:gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start pt-1 pb-4">
       {groups.map((g) => (
         <NodeBox
           key={g.node?.name ?? "unscheduled"}

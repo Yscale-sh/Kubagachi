@@ -244,15 +244,21 @@ export default function HabitatDashboard() {
                 onSelectPod={selectPod}
               />
             ) : (
-              groups.map((g) => (
-                <NodeBox
-                  key={g.node?.name ?? "unscheduled"}
-                  group={g}
-                  activeUid={activePod?.uid ?? null}
-                  activeOwner={activePod?.ownerName ?? null}
-                  onSelectPod={selectPod}
-                />
-              ))
+              // Node habitats flow into as many columns as the center width
+              // allows (auto-fit), so wide desktops fill across instead of one
+              // node per full-width row; collapses to a single column on phones.
+              // items-start lets ragged-height boxes top-align cleanly.
+              <div className="grid gap-2.5 grid-cols-[repeat(auto-fit,minmax(340px,1fr))] items-start">
+                {groups.map((g) => (
+                  <NodeBox
+                    key={g.node?.name ?? "unscheduled"}
+                    group={g}
+                    activeUid={activePod?.uid ?? null}
+                    activeOwner={activePod?.ownerName ?? null}
+                    onSelectPod={selectPod}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </div>
