@@ -9,12 +9,18 @@
  * The dock takes layout space (~40vh) below the main view; it unmounts (and
  * tears the socket down) when the store's terminalSession is cleared. In demo
  * mode the server answers with an error frame, which we print gracefully.
+ *
+ * Look: a floating, gold-glowing "pane" — litewindow's cockpit-terminal polish
+ * adapted to the Yscale language (sharp 3px radius, kubagachi's gold accent).
+ * The chrome (pane glow, slim scrollbar, dock-in motion) lives in index.css
+ * under `.term-pane` / `.kubagachi-dock-in`.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Terminal as TerminalIcon, X } from "lucide-react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import {
   useTerminalSession,
@@ -31,8 +37,13 @@ export default function TerminalDock() {
   return <DockSession key={key} session={session} />;
 }
 
+type Status = "connecting" | "connected" | "closed";
+
 function DockSession({ session }: { session: TerminalSession }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  // `status` drives the connecting banner; `focused` drives the gold pane glow.
+  const [status, setStatus] = useState<Status>("connecting");
+  const [focused, setFocused] = useState(true);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -43,13 +54,15 @@ function DockSession({ session }: { session: TerminalSession }) {
       fontFamily: '"JetBrains Mono", ui-monospace, Menlo, monospace',
       fontSize: 12,
       lineHeight: 1.25,
+      scrollback: 5000,
       theme: {
-        background: "#0a0a0a",
-        foreground: "#e8e6e0",
+        background: "#08090b",
+        foreground: "#ecebe4",
         cursor: "#c9b88a",
-        cursorAccent: "#0a0a0a",
-        selectionBackground: "rgba(201,184,138,0.25)",
-        black: "#0a0a0a",
+        cursorAccent: "#08090b",
+        selectionBackground: "rgba(201,184,138,0.30)",
+        selectionForeground: "#0a0a0a",
+        black: "#08090b",
         red: "#d88a8a",
         green: "#7eb87e",
         yellow: "#d4b46a",
@@ -57,7 +70,7 @@ function DockSession({ session }: { session: TerminalSession }) {
         magenta: "#c9a3c0",
         cyan: "#8ac0b8",
         white: "#e8e6e0",
-        brightBlack: "#55514a",
+        brightBlack: "#5a564e",
         brightRed: "#e0a0a0",
         brightGreen: "#9ec79a",
         brightYellow: "#d8c89a",
@@ -69,6 +82,10 @@ function DockSession({ session }: { session: TerminalSession }) {
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
+    // Make any URL in the output tappable — opens in a new tab (noopener).
+    term.loadAddon(
+      new WebLinksAddon((_e, uri) => window.open(uri, "_blank", "noopener")),
+    );
     term.open(host);
 
     let ws: WebSocket | null = null;
@@ -101,6 +118,12 @@ function DockSession({ session }: { session: TerminalSession }) {
       resizeTimer = window.setTimeout(doFit, 120);
     };
 
+    // The shell is "active" (gold glow) whenever focus lives inside the pane.
+    const onFocusIn = (): void => setFocused(true);
+    const onFocusOut = (): void => setFocused(false);
+    host.addEventListener("focusin", onFocusIn);
+    host.addEventListener("focusout", onFocusOut);
+
     // Initial fit before connecting so we can report a real size.
     try {
       fit.fit();
@@ -116,13 +139,12 @@ function DockSession({ session }: { session: TerminalSession }) {
     });
     const url = `${proto}//${window.location.host}/api/exec?${qs.toString()}`;
 
-    term.writeln(`\x1b[90mconnecting to ${session.namespace}/${session.pod} (${session.container})…\x1b[0m`);
-
     try {
       ws = new WebSocket(url);
     } catch {
       term.writeln("\x1b[31mfailed to open exec socket\x1b[0m");
       term.writeln("\x1b[90m[session ended]\x1b[0m");
+      setStatus("closed");
     }
 
     if (ws) {
@@ -147,14 +169,16 @@ function DockSession({ session }: { session: TerminalSession }) {
             if (frame.data) term.write(frame.data);
             break;
           case "connected":
-            term.writeln("\x1b[90mconnected.\x1b[0m");
+            setStatus("connected");
             break;
           case "error":
             term.writeln(`\x1b[31m${frame.message ?? frame.error ?? frame.data ?? "exec error"}\x1b[0m`);
+            setStatus("closed");
             break;
           case "exit":
             term.writeln("\r\n\x1b[90m[session ended]\x1b[0m");
             closed = true;
+            setStatus("closed");
             break;
           default:
             break;
@@ -162,12 +186,14 @@ function DockSession({ session }: { session: TerminalSession }) {
       };
       socket.onerror = () => {
         if (!closed) term.writeln("\r\n\x1b[31mexec socket error\x1b[0m");
+        setStatus("closed");
       };
       socket.onclose = () => {
         if (!closed) {
           term.writeln("\r\n\x1b[90m[session ended]\x1b[0m");
           closed = true;
         }
+        setStatus("closed");
       };
     }
 
@@ -184,6 +210,8 @@ function DockSession({ session }: { session: TerminalSession }) {
 
     return () => {
       window.removeEventListener("resize", onWindowResize);
+      host.removeEventListener("focusin", onFocusIn);
+      host.removeEventListener("focusout", onFocusOut);
       window.clearTimeout(settleTimer);
       if (pingTimer !== null) window.clearInterval(pingTimer);
       if (resizeTimer !== null) window.clearTimeout(resizeTimer);
@@ -198,27 +226,50 @@ function DockSession({ session }: { session: TerminalSession }) {
   }, [session.namespace, session.pod, session.container]);
 
   return (
-    <div className="shrink-0 h-[40vh] min-h-[200px] border-t border-border-strong bg-bg-base flex flex-col z-20">
-      {/* Header */}
-      <div className="shrink-0 h-8 flex items-center gap-2 px-3 border-b border-border bg-bg-panel font-mono text-[11px]">
-        <TerminalIcon size={12} className="text-accent" />
-        <span className="text-text-muted">shell</span>
-        <span className="text-border select-none" aria-hidden="true">│</span>
-        <span className="text-text truncate">
-          {session.namespace}/{session.pod}
-        </span>
-        <span className="text-text-muted truncate">· {session.container}</span>
-        <button
-          type="button"
-          aria-label="Close terminal"
-          onClick={() => workspaceActions.closeTerminal()}
-          className="ml-auto inline-flex items-center justify-center h-6 w-6 text-text-muted hover:text-text hover:bg-bg-panel2 transition-colors k9s-square"
-        >
-          <X size={13} />
-        </button>
+    <div className="shrink-0 h-[40vh] min-h-[200px] p-1.5 sm:p-2 z-20 kubagachi-dock-in">
+      <div
+        data-focused={focused ? "true" : "false"}
+        className="term-pane h-full flex flex-col rounded-md overflow-hidden bg-[#08090b]"
+      >
+        {/* Head bar — terminal glyph, ns/pod · container, faint close→danger. */}
+        <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-border bg-bg-panel/85 font-mono text-[11px]">
+          <TerminalIcon size={12} className="text-accent shrink-0" />
+          <span className="text-text truncate">
+            {session.namespace}/{session.pod}
+          </span>
+          <span className="text-text-muted truncate">· {session.container}</span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            aria-label="Close terminal"
+            onClick={() => workspaceActions.closeTerminal()}
+            className="inline-flex items-center justify-center h-6 w-6 rounded text-text-muted hover:text-status-error hover:bg-bg-panel2 transition-colors"
+          >
+            <X size={13} />
+          </button>
+        </div>
+
+        {/* Body — xterm host with a fade-in "connecting" banner on top. */}
+        <div className="relative flex-1 min-h-0">
+          <div ref={hostRef} className="absolute inset-0 px-2 py-1.5 overflow-hidden" />
+          <div
+            aria-hidden={status !== "connecting"}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-500"
+            style={{ opacity: status === "connecting" ? 1 : 0 }}
+          >
+            <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-md border border-border bg-bg-panel/90 backdrop-blur-sm font-mono text-[11px] text-text-muted shadow-lg">
+              <span className="kubagachi-pip block h-1.5 w-1.5 rounded-full bg-accent" />
+              <span>
+                connecting to{" "}
+                <span className="text-text">
+                  {session.namespace}/{session.pod}
+                </span>{" "}
+                <span className="text-text-muted">({session.container})</span>…
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
-      {/* xterm host */}
-      <div ref={hostRef} className="flex-1 min-h-0 px-2 py-1 overflow-hidden" />
     </div>
   );
 }

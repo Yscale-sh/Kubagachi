@@ -150,9 +150,66 @@ body[data-cluster="critical"] .atmo-glow {
 }
 
 /* -------------------------------------------------------------------------
+ * Terminal dock — a floating "pane" for the in-pod shell. Adapts litewindow's
+ * cockpit-terminal polish to the Yscale language: sharp 3px radius (not
+ * litewindow's 10px), a resting drop shadow that lifts the pane off the room,
+ * and a gold focus glow when the shell is active.
+ * ---------------------------------------------------------------------- */
+.term-pane {
+  border: 1px solid #262626; /* border-DEFAULT */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42);
+  transition:
+    border-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.term-pane[data-focused="true"] {
+  border-color: #c9b88a; /* accent */
+  box-shadow:
+    0 0 0 1px rgba(201, 184, 138, 0.14),
+    0 0 26px -10px rgba(201, 184, 138, 0.5),
+    0 14px 40px rgba(0, 0, 0, 0.52);
+}
+
+/* Slim, rounded scrollbar for the xterm viewport (litewindow .xterm-viewport,
+   retuned to kubagachi greys). Touch-drag + wheel scrolling stay usable. */
+.term-pane .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a transparent;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.term-pane .xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+.term-pane .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #3a3a3a; /* border-strong */
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.term-pane .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+  background-clip: padding-box;
+}
+.term-pane .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* -------------------------------------------------------------------------
  * Kubagachi animations — frame-based mascots stay; ambient motion is toned
  * down to fit the calmer Yscale chrome.
  * ---------------------------------------------------------------------- */
+
+/* The terminal dock slides up + fades in on open so launching a shell feels
+   deliberate, not abrupt. Collapsed to instant under reduced-motion below. */
+@keyframes kubagachi-dock-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kubagachi-dock-in {
+  animation: kubagachi-dock-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
 
 @keyframes kubagachi-bob {
   0%, 100% { transform: translateY(0); }
@@ -238,10 +295,12 @@ body[data-cluster="critical"] .atmo-glow {
     animation: none !important;
   }
   .kubagachi-card-in,
-  .yscale-overlay-in {
+  .yscale-overlay-in,
+  .kubagachi-dock-in {
     animation-duration: 1ms !important;
   }
-  .atmo-glow {
+  .atmo-glow,
+  .term-pane {
     transition: none !important;
   }
   * {
