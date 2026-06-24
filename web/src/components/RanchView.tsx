@@ -1,16 +1,15 @@
 /**
- * RanchView — the calm "pasture" rendering of the habitat.
+ * RanchView — the "storage box" rendering of the habitat.
  *
- * A toggleable alternative to the dense node-box grid (see HabitatDashboard).
- * Each cluster NODE becomes a grassy elliptical PLATFORM, and that node's PODS
- * stand on it as pixel-art critters — a Pokémon-ranch / PC-storage-box vibe
- * rather than a battle. Phase 1: critters stand scattered at deterministic
- * positions (a hash of pod.uid) so they never jump between live ticks, doing
- * only the shared idle bob. Wandering movement is a later phase.
+ * A toggleable alternative to the dense node-box grid (see HabitatDashboard),
+ * modelled on the Pokémon PC-storage / ranch screen: each cluster NODE is a
+ * panel ("box"), and every pod inside it is a pixel-art critter standing on its
+ * OWN little grassy LEDGE, laid out in a tidy grid. Calm and alive (idle bob),
+ * not a battle. Wandering movement between ledges is a later phase.
  *
- * Selection + keyboard parity with the grid is preserved: every critter carries
- * data-pod-uid (and data-row-selected on the active one) so the shared
- * scrollSelectedRowIntoView + j/k cursor keep working, click selects, and
+ * Selection + keyboard parity with the grid view is preserved: every critter
+ * carries data-pod-uid (and data-row-selected on the active one) so the shared
+ * scrollSelectedRowIntoView + j/k cursor keep working; click selects, and
  * double-click inspects.
  */
 
@@ -45,8 +44,8 @@ interface RanchViewProps {
   onSelectPod: (uid: string) => void;
 }
 
-// FNV-ish string hash → unsigned 32-bit. Same family as HabitatDashboard's
-// hashStr; used here to derive STABLE scatter positions + animation phases.
+// FNV-ish string hash → unsigned 32-bit. Used only to stagger the idle bob so
+// the box breathes organically instead of in lockstep.
 function hashStr(s: string): number {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) {
@@ -56,36 +55,6 @@ function hashStr(s: string): number {
   return h >>> 0;
 }
 
-// Deterministic placement of a critter on the platform's upper face from its
-// uid. We spread x across the turf and lay critters into a few depth BANDS so
-// they read as standing in a field (lower = nearer = higher z-index). The
-// position is purely a function of uid + its index within the node, so it is
-// stable across re-renders and live ticks (no jumping).
-function placement(uid: string, indexInNode: number, count: number) {
-  const h = hashStr(uid);
-  // Horizontal: jittered even spread so they don't stack into a column.
-  const slot = count > 1 ? indexInNode / (count - 1) : 0.5;
-  const jitter = ((h % 1000) / 1000 - 0.5) * 0.16; // ±8%
-  const xPct = clamp(8 + slot * 84 + jitter * 100, 6, 94);
-
-  // Depth bands across the turf's vertical face. More pods → more bands so a
-  // busy node doesn't crowd one line.
-  const bandCount = Math.min(4, Math.max(2, Math.ceil(count / 5)));
-  const band = (h >> 10) % bandCount;
-  const bandJitter = (((h >> 4) % 100) / 100 - 0.5) * 0.06;
-  const yPct = clamp(34 + (band / Math.max(1, bandCount - 1)) * 42 + bandJitter * 100, 28, 82);
-
-  // Stagger the idle bob so the pasture breathes organically, not in lockstep.
-  const bobDelay = `${(h % 1900) / 1000}s`;
-  // z by depth so nearer (lower) critters overlap farther (upper) ones.
-  const z = Math.round(yPct * 10);
-  return { xPct, yPct, bobDelay, z };
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return v < lo ? lo : v > hi ? hi : v;
-}
-
 export default function RanchView({
   groups,
   activeUid,
@@ -93,9 +62,9 @@ export default function RanchView({
   onSelectPod,
 }: RanchViewProps) {
   return (
-    <div className="flex flex-col gap-5 sm:gap-7 pt-1 pb-4">
+    <div className="flex flex-col gap-3 sm:gap-4 pt-1 pb-4">
       {groups.map((g) => (
-        <Platform
+        <NodeBox
           key={g.node?.name ?? "unscheduled"}
           group={g}
           activeUid={activeUid}
@@ -107,7 +76,7 @@ export default function RanchView({
   );
 }
 
-function Platform({
+function NodeBox({
   group,
   activeUid,
   activeOwner,
@@ -121,20 +90,12 @@ function Platform({
   const { node, pods } = group;
   const ready = node ? node.status === "ready" : false;
   const name = node?.name ?? "(unscheduled)";
-  // Healthy ready nodes get lush green turf; not-ready / unscheduled get the
-  // dry pasture. CSS gradients sit BEHIND the PNG so it still reads as turf if
-  // the image 404s.
-  const healthy = ready;
-  const turfUrl = healthy ? "/ranch/turf-green.png" : "/ranch/turf-dry.png";
-  const turfBody = healthy
-    ? "radial-gradient(120% 90% at 50% 18%, #4f7a3e 0%, #3c5f30 46%, #2c4724 78%, #233a1e 100%)"
-    : "radial-gradient(120% 90% at 50% 18%, #8a7d4e 0%, #6f6440 46%, #564d33 78%, #443d29 100%)";
-  const rim = healthy ? "#1c2f17" : "#352f1f";
+  const ledgeUrl = ready ? "/ranch/ledge-green.png" : "/ranch/ledge-dry.png";
 
   return (
-    <section className="relative">
-      {/* Node header — Yscale dark TUI bar that caps the platform. */}
-      <div className="relative z-20 mx-auto max-w-[min(94%,860px)] flex items-center gap-x-3 gap-y-1 flex-wrap px-3 py-1.5 border border-border-strong bg-bg-panel/80 backdrop-blur-[1px] k9s-square font-mono">
+    <section className="mx-auto w-full max-w-[min(96%,1000px)] border border-border-strong bg-bg-panel/35 k9s-square overflow-hidden">
+      {/* Node header — the "box" label bar. */}
+      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap px-3 py-1.5 border-b border-border bg-bg-panel/70 font-mono">
         <span className="text-tui-cyan/80 text-[10px] uppercase tracking-wider">node</span>
         <span className="text-text text-[12px] truncate max-w-[50%] sm:max-w-none">{name}</span>
         {node && (
@@ -150,42 +111,34 @@ function Platform({
         </span>
       </div>
 
-      {/* The grassy platform: a wide ellipse of turf the critters stand on. */}
+      {/* The box floor: a subtle vignette so the grassy ledges pop, like the
+          dark PC-box background in the games. */}
       <div
-        className="relative mx-auto -mt-1.5 w-full max-w-[min(94%,860px)] h-[200px] sm:h-[240px]"
+        className="p-3 sm:p-4"
         style={{
-          // PNG turf layered ON TOP of a CSS turf gradient, so the platform
-          // still reads as grass even if the PNG 404s.
-          backgroundImage: `url("${turfUrl}"), ${turfBody}`,
-          backgroundSize: "cover, cover",
-          backgroundPosition: "center, center",
-          backgroundRepeat: "no-repeat, no-repeat",
-          imageRendering: "pixelated",
-          borderRadius: "50% / 38%",
-          boxShadow: `inset 0 -14px 26px -10px ${rim}, inset 0 8px 22px -10px rgba(255,255,255,0.10), 0 18px 30px -16px rgba(0,0,0,0.7)`,
-          border: `2px solid ${rim}`,
+          background:
+            "radial-gradient(130% 120% at 50% 0%, rgba(255,255,255,0.025), transparent 60%), #0c0e0c",
         }}
       >
         {pods.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-text-muted/70 text-[11px] italic font-mono px-3 py-1 bg-bg-base/30 k9s-square">
+          <div className="flex items-center justify-center py-8">
+            <span className="text-text-muted/70 text-[11px] italic font-mono px-3 py-1 bg-bg-base/40 k9s-square">
               quiet pasture · no pods grazing here
             </span>
           </div>
         ) : (
-          pods.map((p, i) => (
-            <Critter
-              key={p.uid}
-              pod={p}
-              indexInNode={i}
-              count={pods.length}
-              active={p.uid === activeUid}
-              sibling={
-                p.uid !== activeUid && !!activeOwner && p.ownerName === activeOwner
-              }
-              onSelect={() => onSelectPod(p.uid)}
-            />
-          ))
+          <div className="grid gap-2 sm:gap-3 grid-cols-[repeat(auto-fill,minmax(104px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(124px,1fr))]">
+            {pods.map((p) => (
+              <Critter
+                key={p.uid}
+                pod={p}
+                ledgeUrl={ledgeUrl}
+                active={p.uid === activeUid}
+                sibling={p.uid !== activeUid && !!activeOwner && p.ownerName === activeOwner}
+                onSelect={() => onSelectPod(p.uid)}
+              />
+            ))}
+          </div>
         )}
       </div>
     </section>
@@ -194,36 +147,29 @@ function Platform({
 
 function Critter({
   pod,
-  indexInNode,
-  count,
+  ledgeUrl,
   active,
   sibling,
   onSelect,
 }: {
   pod: Pod;
-  indexInNode: number;
-  count: number;
+  ledgeUrl: string;
   active: boolean;
   sibling: boolean;
   onSelect: () => void;
 }) {
-  const { xPct, yPct, bobDelay, z } = placement(pod.uid, indexInNode, count);
   const color = STATUS_COLOR[pod.status];
   const title = pod.ownerName ?? pod.name;
-  // Mirror PodCard: acute (crashloop/error) pulses; backoff still glows sick.
   const acute = pod.status === "crashloop" || pod.status === "error";
   const sick = acute || pod.status === "backoff";
+  const bobDelay = `${(hashStr(pod.uid) % 1900) / 1000}s`;
 
-  // The sprite box. Selected critters get a gold spotlight; sick ones a colored
-  // glow that overrides the rest. Sibling pods get a soft gold hint.
-  let spriteShadow: string | undefined;
-  if (active) {
-    spriteShadow = `drop-shadow(0 0 8px ${GOLD}) drop-shadow(0 2px 1px rgba(0,0,0,0.5))`;
-  } else if (sick) {
-    spriteShadow = `drop-shadow(0 0 7px ${color}) drop-shadow(0 2px 1px rgba(0,0,0,0.5))`;
-  } else {
-    spriteShadow = "drop-shadow(0 2px 1px rgba(0,0,0,0.45))";
-  }
+  // Sprite glow: selected = gold, sick = status hue, else a soft drop shadow.
+  const spriteShadow = active
+    ? `drop-shadow(0 0 8px ${GOLD}) drop-shadow(0 2px 1px rgba(0,0,0,0.5))`
+    : sick
+      ? `drop-shadow(0 0 7px ${color}) drop-shadow(0 2px 1px rgba(0,0,0,0.5))`
+      : "drop-shadow(0 3px 2px rgba(0,0,0,0.5))";
 
   return (
     <button
@@ -233,54 +179,65 @@ function Critter({
       onClick={onSelect}
       onDoubleClick={() => workspaceActions.selectResource(pod.uid)}
       title={`${pod.name}  ·  double-click to inspect`}
-      className={`group absolute flex flex-col items-center gap-0.5 -translate-x-1/2 -translate-y-full ${
-        acute ? "kubagachi-crash-pulse" : ""
-      }`}
-      style={{
-        left: `${xPct}%`,
-        top: `${yPct}%`,
-        zIndex: active ? 999 : z,
-      }}
+      className={`group relative flex flex-col items-center pt-1 ${active ? "z-10" : ""}`}
     >
-      {/* Name tag above the critter. */}
+      {/* Stage: the critter stands ON the ledge. */}
+      <div className="relative w-full h-[78px] sm:h-[88px] flex items-end justify-center">
+        {/* Selection / sibling halo behind the ledge. */}
+        {(active || sibling) && (
+          <span
+            aria-hidden="true"
+            className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-[50%] pointer-events-none"
+            style={{
+              width: active ? "92px" : "78px",
+              height: active ? "30px" : "24px",
+              background: active
+                ? `radial-gradient(closest-side, ${GOLD}66, transparent)`
+                : `radial-gradient(closest-side, ${GOLD}2e, transparent)`,
+            }}
+          />
+        )}
+
+        {/* The grassy ledge. */}
+        <div
+          aria-hidden="true"
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[92px] sm:w-[104px] h-[30px] sm:h-[34px]"
+          style={{
+            backgroundImage: `url("${ledgeUrl}")`,
+            backgroundSize: "contain",
+            backgroundPosition: "center bottom",
+            backgroundRepeat: "no-repeat",
+            imageRendering: "pixelated",
+            filter: active
+              ? `drop-shadow(0 0 5px ${GOLD}aa)`
+              : sick
+                ? `drop-shadow(0 0 5px ${color}88)`
+                : "drop-shadow(0 4px 5px rgba(0,0,0,0.55))",
+          }}
+        />
+
+        {/* The bobbing critter, feet resting on the ledge top. */}
+        <div
+          className={`relative w-[52px] h-[52px] sm:w-[58px] sm:h-[58px] mb-[12px] sm:mb-[14px] kubagachi-bob ${
+            acute ? "kubagachi-crash-pulse rounded-full" : ""
+          }`}
+          style={{ animationDelay: bobDelay, filter: spriteShadow }}
+        >
+          <CritterPlayer critter={pod.critter} status={pod.critterState ?? pod.status} />
+        </div>
+      </div>
+
+      {/* Name tag under the ledge. */}
       <span
-        className={`max-w-[88px] truncate font-mono text-[9px] leading-none px-1 py-0.5 k9s-square border ${
-          active
-            ? "text-bg-base font-medium"
-            : sick
-            ? "text-text"
-            : "text-text-muted/90"
-        }`}
+        className="mt-1 max-w-full truncate font-mono text-[9px] sm:text-[10px] leading-none px-1 py-0.5 k9s-square border"
         style={{
-          backgroundColor: active ? GOLD : "rgba(10,12,10,0.55)",
+          color: active ? "#0a0a0a" : sick ? color : "#b9b4a8",
+          backgroundColor: active ? GOLD : "transparent",
           borderColor: active ? GOLD : sibling ? `${GOLD}66` : "transparent",
         }}
       >
         {title}
       </span>
-
-      {/* The bobbing critter sprite. */}
-      <div
-        className="w-14 h-14 sm:w-16 sm:h-16 kubagachi-bob"
-        style={{ animationDelay: bobDelay, filter: spriteShadow }}
-      >
-        <CritterPlayer critter={pod.critter} status={pod.critterState ?? pod.status} />
-      </div>
-
-      {/* Ground shadow / selection spotlight beneath the critter. */}
-      <span
-        aria-hidden="true"
-        className="absolute bottom-[-3px] left-1/2 -translate-x-1/2 rounded-[50%] pointer-events-none"
-        style={{
-          width: active ? "44px" : "30px",
-          height: active ? "13px" : "8px",
-          background: active
-            ? `radial-gradient(closest-side, ${GOLD}cc, ${GOLD}33 65%, transparent)`
-            : sick
-            ? `radial-gradient(closest-side, ${color}99, transparent)`
-            : "radial-gradient(closest-side, rgba(0,0,0,0.42), transparent)",
-        }}
-      />
     </button>
   );
 }
