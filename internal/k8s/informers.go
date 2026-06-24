@@ -259,6 +259,7 @@ func (w *Watcher) build(
 ) state.ClusterState {
 	snap := state.ClusterState{
 		ClusterName:   w.clusterName,
+		ServerVersion: w.client.ServerVersion,
 		Namespace:     w.namespace,
 		AllNamespaces: w.allNamespaces,
 	}

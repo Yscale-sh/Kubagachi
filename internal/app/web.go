@@ -19,6 +19,7 @@ import (
 	"github.com/creack/pty"
 	"golang.org/x/net/websocket"
 
+	"github.com/jakenesler/kubagachi/internal/k8s"
 	"github.com/jakenesler/kubagachi/internal/sprites"
 	"github.com/jakenesler/kubagachi/internal/state"
 	webui "github.com/jakenesler/kubagachi/web"
@@ -59,13 +60,14 @@ type webPod struct {
 }
 
 type webNode struct {
-	Name     string `json:"name"`
-	Status   string `json:"status"`
-	CPU      string `json:"cpu"`
-	Mem      string `json:"mem"`
-	CPUPct   int    `json:"cpuPct"` // -1 == unknown
-	MemPct   int    `json:"memPct"` // -1 == unknown
-	PodCount int    `json:"podCount"`
+	Name           string `json:"name"`
+	Status         string `json:"status"`
+	KubeletVersion string `json:"kubeletVersion,omitempty"`
+	CPU            string `json:"cpu"`
+	Mem            string `json:"mem"`
+	CPUPct         int    `json:"cpuPct"` // -1 == unknown
+	MemPct         int    `json:"memPct"` // -1 == unknown
+	PodCount       int    `json:"podCount"`
 }
 
 type webEvent struct {
@@ -244,9 +246,21 @@ type webStorageClass struct {
 	AgeSec            int    `json:"ageSec"`
 }
 
+type webContext struct {
+	Name      string `json:"name"`
+	Cluster   string `json:"cluster"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
+type webContextList struct {
+	Current  string       `json:"current"`
+	Contexts []webContext `json:"contexts"`
+}
+
 type webSnapshot struct {
 	Mode                   string                     `json:"mode"` // "live" | "demo"
 	Context                string                     `json:"context"`
+	Version                string                     `json:"version,omitempty"`
 	CurrentNamespace       string                     `json:"currentNamespace"`
 	FluxInstalled          bool                       `json:"fluxInstalled"`
 	MetricsInstalled       bool                       `json:"metricsInstalled"`
@@ -287,6 +301,7 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 	snap := webSnapshot{
 		Mode:                   mode,
 		Context:                cs.ClusterName,
+		Version:                cs.ServerVersion,
 		CurrentNamespace:       cs.Namespace,
 		FluxInstalled:          cs.FluxInstalled,
 		MetricsInstalled:       cs.MetricsInstalled,
@@ -352,7 +367,8 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 			status = "notready"
 		}
 		snap.Nodes = append(snap.Nodes, webNode{
-			Name: n.Name, Status: status, CPU: n.CPUText, Mem: n.MemoryText,
+			Name: n.Name, Status: status, KubeletVersion: n.KubeletVersion,
+			CPU: n.CPUText, Mem: n.MemoryText,
 			CPUPct: n.CPUPercent(), MemPct: n.MemPercent(),
 			PodCount: len(n.Pods),
 		})
@@ -552,15 +568,27 @@ func (h *snapshotHub) subscribe() (chan webSnapshot, func()) {
 func runWeb(ctx context.Context, cfg Config, source ClusterSource, snapshots <-chan state.ClusterState) error {
 	hub := newSnapshotHub()
 	go func() {
-		for snap := range snapshots {
-			hub.set(toWebSnapshot(snap, source.Label()))
+		// Consume snapshots until shutdown. The manager never closes its
+		// snapshot channel (a context switch swaps the upstream beneath it),
+		// so terminate on ctx instead of relying on a channel close.
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case snap, ok := <-snapshots:
+				if !ok {
+					return
+				}
+				hub.set(toWebSnapshot(snap, source.Label()))
+			}
 		}
 	}()
 
 	mux := http.NewServeMux()
 	registerUI(mux)
 	registerSprites(mux, cfg)
-	registerAPI(mux, hub, source)
+	manager, _ := source.(*sourceManager)
+	registerAPI(ctx, mux, hub, source, manager)
 
 	srv := &http.Server{Addr: cfg.WebAddr, Handler: mux}
 	errc := make(chan error, 1)
@@ -635,11 +663,56 @@ func registerSprites(mux *http.ServeMux, cfg Config) {
 	})
 }
 
-func registerAPI(mux *http.ServeMux, hub *snapshotHub, source ClusterSource) {
+func registerAPI(ctx context.Context, mux *http.ServeMux, hub *snapshotHub, source ClusterSource, manager *sourceManager) {
 	actions := source.Actions()
 
 	mux.HandleFunc("/api/snapshot", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, hub.get())
+	})
+
+	mux.HandleFunc("/api/contexts", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "GET only", http.StatusMethodNotAllowed)
+			return
+		}
+		if manager == nil {
+			http.Error(w, "context switching unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		contexts, err := manager.contexts()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		writeJSON(w, toWebContexts(contexts))
+	})
+
+	mux.HandleFunc("/api/contexts/select", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", http.StatusMethodNotAllowed)
+			return
+		}
+		if manager == nil {
+			http.Error(w, "context switching unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" {
+			http.Error(w, "context name is required", http.StatusBadRequest)
+			return
+		}
+		if err := manager.selectContext(ctx, req.Name); err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		contexts, err := manager.contexts()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		writeJSON(w, toWebContexts(contexts))
 	})
 
 	// SSE: one snapshot per cluster change plus a heartbeat comment.
@@ -788,6 +861,21 @@ func registerAPI(mux *http.ServeMux, hub *snapshotHub, source ClusterSource) {
 	mux.Handle("/api/exec", websocket.Handler(func(ws *websocket.Conn) {
 		execSession(ws, actions)
 	}))
+}
+
+func toWebContexts(contexts k8s.ContextList) webContextList {
+	out := webContextList{
+		Current:  contexts.Current,
+		Contexts: make([]webContext, 0, len(contexts.Contexts)),
+	}
+	for _, ctx := range contexts.Contexts {
+		out.Contexts = append(out.Contexts, webContext{
+			Name:      ctx.Name,
+			Cluster:   ctx.Cluster,
+			Namespace: ctx.Namespace,
+		})
+	}
+	return out
 }
 
 // --- exec: kubectl passthrough over a websocket -------------------------------

@@ -40,18 +40,21 @@ func Run(cfg Config) error {
 		}
 	}
 
+	if cfg.Web {
+		manager, snapshots, err := newSourceManager(ctx, cfg)
+		if err != nil {
+			return err
+		}
+		return runWeb(ctx, cfg, manager, snapshots)
+	}
+
 	source, err := selectSource(cfg)
 	if err != nil {
 		return err
 	}
-
 	snapshots, err := source.Stream(ctx)
 	if err != nil {
 		return err
-	}
-
-	if cfg.Web {
-		return runWeb(ctx, cfg, source, snapshots)
 	}
 
 	program := tea.NewProgram(

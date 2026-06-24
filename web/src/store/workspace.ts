@@ -11,7 +11,7 @@
  *   - `selectedResourceUid`  drives the DetailDrawer          (transient)
  *   - `search`               global search query              (transient)
  *   - `selectedNamespace`    "all" or a namespace name        (persisted)
- *   - `selectedContext`      mock-cluster context name        (persisted)
+ *   - `selectedContext`      server-reported cluster context  (persisted)
  *   - `pinnedPodUids`        Kubagachi pinned-pod list       (persisted)
  *
  * The "persisted" subset is mirrored to localStorage under
@@ -23,7 +23,13 @@
 
 import { useSyncExternalStore } from "react";
 import type { AnyResourceKind, Cluster, Pod } from "../lib/types";
-import { loadCluster, subscribeClusterUpdates } from "../lib/cluster-api";
+import {
+  fetchClusterContexts,
+  loadCluster,
+  selectClusterContext,
+  subscribeClusterUpdates,
+  type ClusterContextInfo,
+} from "../lib/cluster-api";
 
 // ---------------------------------------------------------------------------
 // Tab kinds
@@ -82,6 +88,7 @@ export interface WorkspaceState {
   search: string;
   selectedNamespace: string;
   selectedContext: string;
+  contexts: ClusterContextInfo[];
   /** Pod uids the user has pinned to the Kubagachi hotbar. */
   pinnedPodUids: string[];
   /** Active exec session shown in the bottom TerminalDock (transient). */
@@ -102,7 +109,7 @@ export interface WorkspaceState {
 export type HabitatView = "grid" | "ranch";
 
 const STORAGE_KEY = "kubagachi:workspace:v1";
-const DEFAULT_CONTEXT = "mock-cluster";
+const DEFAULT_CONTEXT = "";
 
 const OVERVIEW_TAB: Tab = {
   id: "tab-overview",
@@ -251,6 +258,7 @@ function createStore() {
     search: "",
     selectedNamespace: persisted.selectedNamespace ?? "all",
     selectedContext: persisted.selectedContext ?? DEFAULT_CONTEXT,
+    contexts: [],
     pinnedPodUids: persisted.pinnedPodUids ?? [],
     terminalSession: null,
     paletteOpen: false,
@@ -279,32 +287,44 @@ function createStore() {
 
   // ----- side effects: load cluster + subscribe to live ticks -----
   let liveUnsub: (() => void) | null = null;
+  let liveSeq = 0;
+  const adoptCluster = (c: Cluster): void => {
+    const valid = new Set(c.pods.map((p) => p.uid).filter((u): u is string => !!u));
+    let pinnedPodUids = state.pinnedPodUids.filter((u) => valid.has(u));
+    if (pinnedPodUids.length === 0) {
+      pinnedPodUids = c.pods.map((p) => p.uid).filter((u): u is string => !!u);
+    }
+    set({
+      cluster: c,
+      selectedContext: c.context || state.selectedContext,
+      pinnedPodUids,
+    });
+  };
+
+  const refreshContexts = async (): Promise<void> => {
+    const next = await fetchClusterContexts();
+    if (!next) return;
+    set({
+      contexts: next.contexts,
+      selectedContext: next.current || state.selectedContext,
+    });
+  };
+
   const startLive = (seed: string): void => {
+    const seq = ++liveSeq;
     if (liveUnsub) {
       liveUnsub();
       liveUnsub = null;
     }
+    void refreshContexts();
     // initial one-shot load gives us something to render immediately
     void loadCluster(seed).then((c) => {
-      if (state.selectedContext !== seed) return;
-      // First-time auto-adopt: if the user has never pinned anything, pin
-      // every pod whose mascot we have a sheet for (which is everything the
-      // Go server actually returns — server-side already filters to fresh).
-      // Filter out any persisted uids that no longer resolve in the new
-      // cluster snapshot. This also drops the `undefined` entries from earlier
-      // versions of the auto-pin that didn't see uids from the Go server.
-      const valid = new Set(c.pods.map((p) => p.uid).filter((u): u is string => !!u));
-      let pinnedPodUids = state.pinnedPodUids.filter((u) => valid.has(u));
-      if (pinnedPodUids.length === 0) {
-        // First-time auto-adopt: take every pod with a real uid.
-        pinnedPodUids = c.pods.map((p) => p.uid).filter((u): u is string => !!u);
-      }
-      set({ cluster: c, pinnedPodUids });
+      if (seq !== liveSeq) return;
+      adoptCluster(c);
     });
     liveUnsub = subscribeClusterUpdates(
       (next) => {
-        // Guard against stale subscriptions if context changed mid-flight.
-        if (state.selectedContext === seed) set({ cluster: next });
+        if (seq === liveSeq) adoptCluster(next);
       },
       { initialSeed: seed },
     );
@@ -383,10 +403,23 @@ function createStore() {
     set({ selectedNamespace: ns });
   };
 
-  const setContext = (ctx: string): void => {
+  const setContext = async (ctx: string): Promise<void> => {
     if (ctx === state.selectedContext) return;
-    set({ selectedContext: ctx, cluster: null });
-    startLive(ctx);
+    try {
+      const next = await selectClusterContext(ctx);
+      set({
+        contexts: next.contexts,
+        selectedContext: next.current || ctx,
+        cluster: null,
+        selectedResourceUid: null,
+        drawerTab: null,
+      });
+      toast(`Switched context to ${next.current || ctx}`, "success");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "context switch failed";
+      toast(message, "error");
+      throw err;
+    }
   };
 
   const toggleGroup = (groupId: string): void => {
@@ -485,6 +518,7 @@ function createStore() {
       setSearch,
       setNamespace,
       setContext,
+      refreshContexts,
       toggleGroup,
       pinPod,
       unpinPod,
@@ -574,6 +608,7 @@ export const useDrawerTab = makeHook((s) => s.drawerTab);
 export const useSearch = makeHook((s) => s.search);
 export const useNamespace = makeHook((s) => s.selectedNamespace);
 export const useContext = makeHook((s) => s.selectedContext);
+export const useContexts = makeHook((s) => s.contexts);
 export const usePinnedPodUids = makeHook((s) => s.pinnedPodUids);
 export const useTerminalSession = makeHook((s) => s.terminalSession);
 export const usePaletteOpen = makeHook((s) => s.paletteOpen);

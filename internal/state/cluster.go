@@ -18,6 +18,7 @@ type SummaryView struct {
 // refresh (real or demo) produces a fresh ClusterState.
 type ClusterState struct {
 	ClusterName            string
+	ServerVersion          string
 	Namespace              string
 	AllNamespaces          bool
 	Nodes                  []NodeView

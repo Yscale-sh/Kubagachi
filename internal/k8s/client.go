@@ -4,6 +4,7 @@ package k8s
 
 import (
 	"fmt"
+	"sort"
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -20,6 +21,47 @@ type Client struct {
 	RestConfig       *rest.Config
 	ContextName      string
 	DefaultNamespace string
+	ServerVersion    string
+}
+
+// ContextInfo is one real kubeconfig context from the merged clientcmd config.
+type ContextInfo struct {
+	Name      string
+	Cluster   string
+	Namespace string
+}
+
+// ContextList is the merged kubeconfig context inventory plus its current
+// context name.
+type ContextList struct {
+	Current  string
+	Contexts []ContextInfo
+}
+
+// AvailableContexts returns the contexts visible through kubectl's standard
+// loading rules. KUBECONFIG may be a path list; client-go handles the merge.
+func AvailableContexts() (ContextList, error) {
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	cc := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
+	raw, err := cc.RawConfig()
+	if err != nil {
+		return ContextList{}, fmt.Errorf("loading kubeconfig: %w", err)
+	}
+	out := ContextList{
+		Current:  raw.CurrentContext,
+		Contexts: make([]ContextInfo, 0, len(raw.Contexts)),
+	}
+	for name, ctx := range raw.Contexts {
+		out.Contexts = append(out.Contexts, ContextInfo{
+			Name:      name,
+			Cluster:   ctx.Cluster,
+			Namespace: ctx.Namespace,
+		})
+	}
+	sort.Slice(out.Contexts, func(i, j int) bool {
+		return out.Contexts[i].Name < out.Contexts[j].Name
+	})
+	return out, nil
 }
 
 // NewClient builds a Kubernetes client using the standard kubectl kubeconfig
@@ -58,7 +100,8 @@ func NewClient(contextName string) (*Client, error) {
 		defaultNS = "default"
 	}
 
-	if _, err := clientset.Discovery().ServerVersion(); err != nil {
+	version, err := clientset.Discovery().ServerVersion()
+	if err != nil {
 		return nil, fmt.Errorf("connecting to cluster (context %q): %w", resolvedCtx, err)
 	}
 
@@ -68,5 +111,6 @@ func NewClient(contextName string) (*Client, error) {
 		RestConfig:       restCfg,
 		ContextName:      resolvedCtx,
 		DefaultNamespace: defaultNS,
+		ServerVersion:    version.GitVersion,
 	}, nil
 }

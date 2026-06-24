@@ -17,3 +17,6 @@ web/node_modules/
 .DS_Store
 *.swp
 .mission/
+
+# cartogopher index cache (regenerated tooling artifacts)
+bakes/

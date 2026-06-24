@@ -5,11 +5,12 @@ import "strconv"
 // NodeView is a normalized snapshot of a cluster node and the pods that are
 // scheduled onto it. Usage fields are -1 when metrics-server is unavailable.
 type NodeView struct {
-	Name       string
-	Ready      bool
-	CPUText    string
-	MemoryText string
-	Pods       []PodView
+	Name           string
+	Ready          bool
+	KubeletVersion string
+	CPUText        string
+	MemoryText     string
+	Pods           []PodView
 
 	CPUMilli     int64 // allocatable millicores
 	MemBytes     int64 // allocatable bytes

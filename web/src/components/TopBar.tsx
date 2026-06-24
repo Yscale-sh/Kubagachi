@@ -27,6 +27,7 @@ import {
   useActiveTab,
   useCluster,
   useContext,
+  useContexts,
   useNamespace,
   useSearch,
   useTabs,
@@ -34,15 +35,10 @@ import {
 } from "../store/workspace";
 import { formatAge } from "../lib/format";
 
-const CONTEXTS = ["mock-cluster", "prod-us-east", "staging"] as const;
-
-// Operator identity shown in the account dropdown. The web client runs against
-// whatever kubeconfig the server is using, so this is the local operator label.
-const OPERATOR = "operator@kubagachi";
-
 export default function TopBar() {
   const cluster = useCluster();
   const ctx = useContext();
+  const contexts = useContexts();
   const ns = useNamespace();
   const search = useSearch();
   const tabs = useTabs();
@@ -55,6 +51,8 @@ export default function TopBar() {
   const [ctxOpen, setCtxOpen] = useState(false);
   const [nsOpen, setNsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  const [switchingCtx, setSwitchingCtx] = useState<string | null>(null);
+  const [ctxError, setCtxError] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement | null>(null);
 
@@ -78,6 +76,12 @@ export default function TopBar() {
 
   // Honesty: a "live" cluster (real server / in-cluster) vs a mock/demo snapshot.
   const isLive = cluster?.mode === "live" || cluster?.mode === "cluster";
+  const currentCtx = cluster?.context || ctx || "unknown";
+  const sessionIdentity = isLive ? "—" : cluster?.mode === "demo" ? "demo" : "mock";
+
+  useEffect(() => {
+    void workspaceActions.refreshContexts();
+  }, []);
 
   // Real "last refresh": track the wall-clock time the cluster snapshot
   // *reference* last changed, then re-render every second to show "Xs ago".
@@ -122,26 +126,47 @@ export default function TopBar() {
             onOpenChange={setCtxOpen}
             trigger={
               <span className="inline-flex items-center gap-1 bg-accent-dim text-accent border border-accent-soft px-1.5 h-[18px] k9s-square hover:border-accent transition-colors">
-                <span className="font-medium leading-none">{ctx}</span>
+                <span className="font-medium leading-none">{currentCtx}</span>
                 <ChevronDown size={11} className="opacity-70" />
               </span>
             }
           >
             <DropdownHeader>Switch context</DropdownHeader>
-            {CONTEXTS.map((c) => (
+            {contexts.length === 0 && (
+              <div className="px-3 py-1.5 text-[11px] font-mono text-text-muted">
+                contexts unavailable
+              </div>
+            )}
+            {contexts.map((c) => (
               <DropdownItem
-                key={c}
-                active={c === ctx}
+                key={c.name}
+                active={c.name === currentCtx}
                 onClick={() => {
-                  workspaceActions.setContext(c);
-                  setCtxOpen(false);
+                  if (c.name === currentCtx || switchingCtx) return;
+                  setSwitchingCtx(c.name);
+                  setCtxError(null);
+                  void workspaceActions.setContext(c.name)
+                    .then(() => {
+                      setCtxOpen(false);
+                    })
+                    .catch((err: unknown) => {
+                      setCtxError(err instanceof Error ? err.message : "context switch failed");
+                    })
+                    .finally(() => setSwitchingCtx(null));
                 }}
               >
                 <span className="k9s-glyph text-accent">▸</span>
-                <span className="flex-1">{c}</span>
-                {c === ctx && <span className="text-[10px] text-text-muted">current</span>}
+                <span className="flex-1">{c.name}</span>
+                {c.namespace && <span className="text-[10px] text-text-muted">{c.namespace}</span>}
+                {c.name === currentCtx && <span className="text-[10px] text-text-muted">current</span>}
+                {switchingCtx === c.name && <span className="text-[10px] text-text-muted">switching</span>}
               </DropdownItem>
             ))}
+            {ctxError && (
+              <div className="mx-2 mt-1 border-t border-border px-1 pt-1 text-[11px] font-mono text-status-error">
+                {ctxError}
+              </div>
+            )}
           </Dropdown>
         </Field>
 
@@ -225,12 +250,12 @@ export default function TopBar() {
           <DropdownHeader>Session</DropdownHeader>
           <div className="px-3 py-1.5 text-[12px] font-mono flex items-center gap-2">
             <span className="k9s-glyph text-accent">▸</span>
-            <span className="flex-1 text-text truncate">{OPERATOR}</span>
+            <span className="flex-1 text-text truncate">{sessionIdentity}</span>
           </div>
           <div className="my-1 mx-2 h-px bg-border" />
           <div className="px-3 py-1 text-[11px] font-mono flex items-center justify-between gap-3">
             <span className="text-text-muted uppercase tracking-wider text-[10px]">ctx</span>
-            <span className="text-accent truncate">{ctx}</span>
+            <span className="text-accent truncate">{currentCtx}</span>
           </div>
           <div className="px-3 py-1 text-[11px] font-mono flex items-center justify-between gap-3">
             <span className="text-text-muted uppercase tracking-wider text-[10px]">ns</span>

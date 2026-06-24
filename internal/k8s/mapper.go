@@ -146,7 +146,7 @@ func containerSignal(cs corev1.ContainerStatus) (status, reason string, ok bool)
 
 // MapNode converts a Kubernetes node into a normalized NodeView.
 func MapNode(n *corev1.Node) state.NodeView {
-	nv := state.NodeView{Name: n.Name}
+	nv := state.NodeView{Name: n.Name, KubeletVersion: n.Status.NodeInfo.KubeletVersion}
 	for _, c := range n.Status.Conditions {
 		if c.Type == corev1.NodeReady {
 			nv.Ready = c.Status == corev1.ConditionTrue

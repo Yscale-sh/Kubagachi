@@ -91,6 +91,7 @@ interface ServerPod {
 interface ServerNode {
   name?: string;
   status?: string;
+  kubeletVersion?: string;
   cpu?: string;
   mem?: string;
   /** utilisation 0..100; -1 == unknown */
@@ -283,6 +284,7 @@ interface ServerStorageClass {
 interface ServerSnapshot {
   mode?: string;
   context?: string;
+  version?: string;
   currentNamespace?: string;
   fluxInstalled?: boolean;
   metricsInstalled?: boolean;
@@ -439,7 +441,7 @@ function toNode(n: ServerNode): Node {
     roles: [],
     status,
     conditions: [status === "ready" ? "Ready" : "NotReady"],
-    kubeletVersion: "—",
+    kubeletVersion: n.kubeletVersion || "—",
     os: "linux",
     arch: "amd64",
     cpuCapacity: n.cpu ?? "—",
@@ -878,9 +880,9 @@ function snapshotToCluster(s: ServerSnapshot): Cluster {
   const mode =
     s.mode === "demo" ? "demo" : s.mode === "cluster" ? "cluster" : "live";
   const cluster: Cluster = {
-    context: s.context ?? "cluster",
+    context: s.context || "unknown",
     currentNamespace: s.currentNamespace ?? "default",
-    version: "—",
+    version: s.version || "—",
     generatedAtSec: 0,
     mode,
     fluxInstalled: !!s.fluxInstalled,
@@ -981,6 +983,51 @@ export async function loadCluster(seed: string = "mock-cluster"): Promise<Cluste
   const live = await fetchSnapshot();
   if (live) return live;
   return generateCluster(seed);
+}
+
+// ---------------------------------------------------------------------------
+// Context switching
+// ---------------------------------------------------------------------------
+
+export interface ClusterContextInfo {
+  name: string;
+  cluster: string;
+  namespace?: string;
+}
+
+export interface ClusterContextList {
+  current: string;
+  contexts: ClusterContextInfo[];
+}
+
+export async function fetchClusterContexts(): Promise<ClusterContextList | null> {
+  try {
+    const resp = await fetch("/api/contexts", {
+      headers: { Accept: "application/json" },
+    });
+    if (!resp.ok) return null;
+    const body = (await resp.json()) as ClusterContextList;
+    if (!body || !Array.isArray(body.contexts)) return null;
+    return body;
+  } catch {
+    return null;
+  }
+}
+
+export async function selectClusterContext(name: string): Promise<ClusterContextList> {
+  const resp = await fetch("/api/contexts/select", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
+  if (!resp.ok) {
+    const message = (await resp.text()).trim() || `switch context failed (${resp.status})`;
+    throw new Error(message);
+  }
+  return (await resp.json()) as ClusterContextList;
 }
 
 // ---------------------------------------------------------------------------
