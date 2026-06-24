@@ -127,7 +127,7 @@ function NodeBox({
       />
       {/* Node header — the "box" label bar. */}
       <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap px-3 py-2 border-b border-border bg-bg-panel/70 font-mono">
-        <span className="text-tui-cyan text-[10px] uppercase tracking-[0.18em] font-semibold">node</span>
+        <span className="text-tui-cyan text-[11px] uppercase tracking-[0.07em] font-semibold">node</span>
         <span className="text-text text-[13px] font-semibold truncate max-w-[50%] sm:max-w-none">{name}</span>
         {node && (
           <span
@@ -137,7 +137,7 @@ function NodeBox({
             {ready ? "Ready" : "NotReady"}
           </span>
         )}
-        <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-text-muted">
+        <span className="ml-auto text-[11px] uppercase tracking-[0.05em] text-text-muted">
           pods <span className="text-text tabular-nums text-[12px] font-semibold">{pods.length}</span>
         </span>
       </div>
@@ -214,6 +214,17 @@ function Critter({
     >
       {/* Stage: the critter stands ON the ledge. */}
       <div className="relative w-full h-[78px] sm:h-[88px] flex items-end justify-center">
+        {/* Activity pip — a small status-tinted dot signalling liveness near the
+            critter. Calm pulse when healthy, urgent when crashing; reuses
+            STATUS_COLOR and goes static under prefers-reduced-motion (index.css). */}
+        <span
+          aria-hidden="true"
+          className={`absolute top-1 right-1 z-10 w-1.5 h-1.5 rounded-full pointer-events-none ${
+            acute ? "kubagachi-pip-urgent" : "kubagachi-pip"
+          }`}
+          style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
+        />
+
         {/* Selection / sibling halo behind the ledge. */}
         {(active || sibling) && (
           <span

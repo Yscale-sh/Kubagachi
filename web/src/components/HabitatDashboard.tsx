@@ -297,7 +297,7 @@ function ViewToggle({ view }: { view: "grid" | "ranch" }) {
             onClick={() => workspaceActions.setHabitatView(v)}
             aria-pressed={on}
             title={`${label} view  ·  press v to toggle`}
-            className={`px-2.5 py-1 uppercase tracking-[0.16em] transition-colors ${
+            className={`px-2.5 py-1 uppercase tracking-[0.07em] transition-colors ${
               i > 0 ? "border-l border-border" : ""
             } ${on ? "text-bg-base font-medium" : "text-text-muted hover:text-text"}`}
             style={on ? { backgroundColor: "#c9b88a" } : undefined}
@@ -333,7 +333,7 @@ function MobilePodSheet({
       />
       <div className="relative max-h-[78vh] overflow-y-auto scrollbar-thin bg-bg-panel border-t border-accent/40 kubagachi-card-in font-mono">
         <div className="sticky top-0 flex items-center justify-between px-3 py-2 bg-bg-panel border-b border-border">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan">pod details</span>
+          <span className="text-[11px] uppercase tracking-[0.07em] text-tui-cyan">pod details</span>
           <button onClick={onClose} className="text-text-muted hover:text-text text-[14px] leading-none px-1">
             ✕
           </button>
@@ -354,7 +354,7 @@ function LeftRail({ cluster, mood }: { cluster: Cluster; mood: Mood | null }) {
   const fluxFailing = cluster.flux?.filter((f) => f.ready === "False" && !f.suspended).length ?? 0;
 
   return (
-    <aside className="hidden lg:flex overflow-y-auto scrollbar-thin p-3.5 flex-col gap-4 bg-bg-panel/40">
+    <aside className="hidden lg:flex overflow-y-auto scrollbar-thin p-3.5 flex-col gap-4 bg-bg-panel/75">
       {mood && <ClusterVitals mood={mood} cluster={cluster} />}
 
       <Panel title="cluster overview">
@@ -378,7 +378,7 @@ function LeftRail({ cluster, mood }: { cluster: Cluster; mood: Mood | null }) {
             onClick={() => workspaceActions.openTab("flux")}
             className="w-full flex items-center justify-between hover:text-accent transition-colors"
           >
-            <span className="text-[10px] text-text-muted uppercase tracking-[0.16em]">OBJECTS</span>
+            <span className="text-[11px] text-text-muted uppercase tracking-[0.06em]">OBJECTS</span>
             <span className="tabular-nums text-[13px] font-semibold text-text">{cluster.flux?.length ?? 0}</span>
           </button>
           {fluxFailing > 0 && (
@@ -418,8 +418,8 @@ function LeftRail({ cluster, mood }: { cluster: Cluster; mood: Mood | null }) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border border-border bg-bg-panel/60 k9s-square shadow-[0_0_0_1px_rgba(93,184,232,0.03)]">
-      <div className="px-3 py-2 border-b border-border text-[10px] uppercase tracking-[0.18em] text-tui-cyan font-semibold">
+    <div className="border border-border bg-bg-panel/80 k9s-square shadow-[0_0_0_1px_rgba(93,184,232,0.03)]">
+      <div className="px-3 py-2 border-b border-border text-[11px] uppercase tracking-[0.07em] text-tui-cyan font-semibold">
         {title}
       </div>
       <div className="p-3 flex flex-col gap-1.5">{children}</div>
@@ -501,7 +501,7 @@ function NodeBox({
         style={{ background: `linear-gradient(90deg, transparent, ${railColor}, transparent)` }}
       />
       <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap px-2.5 sm:px-3 py-2 border-b border-border bg-bg-panel/45">
-        <span className="text-tui-cyan text-[10px] uppercase tracking-[0.18em] font-semibold">node</span>
+        <span className="text-tui-cyan text-[11px] uppercase tracking-[0.07em] font-semibold">node</span>
         <span className="text-text text-[13px] font-semibold truncate max-w-[55%] sm:max-w-none">{name}</span>
         {node && (
           <span
@@ -514,7 +514,7 @@ function NodeBox({
         <span className="ml-auto flex items-center gap-3 sm:gap-4">
           <LoadBar label="CPU" pct={cpu} history={node ? nodeHistory(node.name).cpu : []} />
           <LoadBar label="MEM" pct={mem} history={node ? nodeHistory(node.name).mem : []} />
-          <span className="hidden sm:inline text-[10px] uppercase tracking-[0.14em] text-text-muted">
+          <span className="hidden sm:inline text-[11px] uppercase tracking-[0.05em] text-text-muted">
             pods <span className="text-text tabular-nums text-[12px] font-semibold">{pods.length}</span>
           </span>
         </span>
@@ -638,7 +638,7 @@ function RightRail({
   cluster: Cluster;
 }) {
   return (
-    <aside className="hidden lg:flex overflow-y-auto scrollbar-thin flex-col bg-bg-panel/40">
+    <aside className="hidden lg:flex overflow-y-auto scrollbar-thin flex-col bg-bg-panel/75">
       {!pod ? (
         <div className="p-4 text-text-muted text-[12px]">
           select a critter to inspect it.
@@ -670,7 +670,7 @@ function PodDetails({
   return (
     <div className="flex flex-col">
       <div className="p-3 border-b border-border">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2 font-semibold">
+        <div className="text-[11px] uppercase tracking-[0.07em] text-tui-cyan mb-2 font-semibold">
           pod details
         </div>
         <div className="text-[13px] leading-snug font-semibold break-all" style={{ color: TUI_PINK }}>
@@ -694,7 +694,7 @@ function PodDetails({
       </div>
 
       <div className="p-3 border-b border-border">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2 font-semibold">
+        <div className="text-[11px] uppercase tracking-[0.07em] text-tui-cyan mb-2 font-semibold">
           containers
         </div>
         {pod.containers.length === 0 && (
@@ -716,7 +716,7 @@ function PodDetails({
 
       {podEvents.length > 0 && (
         <div className="p-3 border-b border-border">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2 font-semibold">
+          <div className="text-[11px] uppercase tracking-[0.07em] text-tui-cyan mb-2 font-semibold">
             events
           </div>
           {podEvents.map((e) => (
@@ -737,7 +737,7 @@ function PodDetails({
       )}
 
       <div className="p-3">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan mb-2 font-semibold">
+        <div className="text-[11px] uppercase tracking-[0.07em] text-tui-cyan mb-2 font-semibold">
           connections
         </div>
         <Connections pod={pod} siblings={siblings} />
@@ -807,7 +807,7 @@ function PodLoad({ pod }: { pod: Pod }) {
   const history = podHistory(pod.uid);
   return (
     <div className="flex items-baseline gap-2 py-1">
-      <span className="text-[10px] text-text-muted uppercase tracking-[0.16em] w-16 shrink-0">CPU</span>
+      <span className="text-[11px] text-text-muted uppercase tracking-[0.06em] w-16 shrink-0">CPU</span>
       <span className="text-[12px] text-text tabular-nums font-medium">{formatCPU((pod.cpuMilli ?? 0) / 1000)}</span>
       <span className="text-[11px] tracking-[-1px] ml-auto" style={{ color: STATUS_COLOR.running }} title="cpu history">
         {sparkline(history.length ? history : [pod.cpuMilli ?? 0], 10)}
@@ -819,7 +819,7 @@ function PodLoad({ pod }: { pod: Pod }) {
 function Field({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="flex items-baseline gap-2 py-1">
-      <span className="text-[10px] text-text-muted uppercase tracking-[0.16em] w-16 shrink-0">{label}</span>
+      <span className="text-[11px] text-text-muted uppercase tracking-[0.06em] w-16 shrink-0">{label}</span>
       <span className={`text-[12px] break-all font-medium ${color ? "" : "text-text"}`} style={color ? { color } : undefined}>
         {value}
       </span>
@@ -834,8 +834,8 @@ function Field({ label, value, color }: { label: string; value: string; color?: 
 function EventLog({ events }: { events: ClusterEvent[] }) {
   const recent = [...events].sort((a, b) => a.lastSeenSec - b.lastSeenSec).slice(0, 40);
   return (
-    <div className="shrink-0 h-28 sm:h-36 lg:h-40 border-t border-border bg-bg-panel/55 flex flex-col">
-      <div className="px-3 py-1.5 border-b border-border text-[10px] uppercase tracking-[0.18em] text-tui-cyan font-semibold">
+    <div className="shrink-0 h-28 sm:h-36 lg:h-40 border-t border-border bg-bg-panel/80 flex flex-col">
+      <div className="px-3 py-1.5 border-b border-border text-[11px] uppercase tracking-[0.07em] text-tui-cyan font-semibold">
         event log
       </div>
       <div className="flex-1 overflow-y-auto scrollbar-thin px-3 py-2 flex flex-col gap-1">
@@ -849,12 +849,13 @@ function EventLog({ events }: { events: ClusterEvent[] }) {
             >
               {e.type === "warning" ? "⚠" : "ℹ"}
             </span>
-            <span className="text-text-muted truncate">
-              <span className="text-text font-medium">{e.reason}</span>{" "}
+            <span className="text-text truncate">
+              <span className="text-text font-semibold">{e.reason}</span>{" "}
               <span className="text-tui-pink">
                 {e.involvedObject?.kind}/{e.involvedObject?.name}
-              </span>{" "}
-              — {e.message}
+              </span>
+              <span className="text-text-muted"> — </span>
+              {e.message}
             </span>
           </div>
         ))}
@@ -1031,9 +1032,9 @@ function ClusterVitals({ mood, cluster }: { mood: Mood; cluster: Cluster }) {
   const cpuSeries = useMemo(() => clusterCpuHistory(cluster), [cluster]);
 
   return (
-    <div className="border border-border-strong bg-bg-panel/60 k9s-square shadow-[0_0_26px_-18px_rgba(201,184,138,0.9)]">
+    <div className="border border-border-strong bg-bg-panel/80 k9s-square shadow-[0_0_26px_-18px_rgba(201,184,138,0.9)]">
       <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-tui-cyan font-semibold">cluster vitals</span>
+        <span className="text-[11px] uppercase tracking-[0.07em] text-tui-cyan font-semibold">cluster vitals</span>
         <span className="text-[12px] tabular-nums font-semibold" style={{ color: mood.color }}>
           {pct}%
         </span>
@@ -1072,7 +1073,7 @@ function ClusterVitals({ mood, cluster }: { mood: Mood; cluster: Cluster }) {
           </span>
         )}
         <div className="self-stretch flex items-center gap-2 text-[10px] text-text-muted pt-2 mt-1 border-t border-border/60">
-          <span className="uppercase tracking-[0.16em]">cluster cpu</span>
+          <span className="uppercase tracking-[0.07em]">cluster cpu</span>
           <span className="tracking-[-1px] flex-1 text-right" style={{ color: mood.color }}>
             {sparkline(cpuSeries.length ? cpuSeries : [0], 16, 100)}
           </span>

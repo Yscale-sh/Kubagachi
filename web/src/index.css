@@ -68,9 +68,12 @@ img.pixelated {
   inset: 0;
   pointer-events: none;
   z-index: 70;
+  /* The two glow cores are pulled toward the open habitat (center column) and
+     their reach is trimmed, so the dense side rails / event log sit in calmer
+     atmosphere where text always wins, while the habitat stays lively. */
   background:
-    radial-gradient(760px 520px at 10% 4%, var(--mood-glow), transparent 64%),
-    radial-gradient(820px 620px at 90% 92%, var(--mood-glow-2), transparent 66%),
+    radial-gradient(680px 520px at 30% 0%, var(--mood-glow), transparent 60%),
+    radial-gradient(720px 600px at 70% 100%, var(--mood-glow-2), transparent 62%),
     linear-gradient(135deg, rgba(93, 184, 232, 0.035), transparent 40%, rgba(224, 123, 154, 0.04) 72%, transparent);
   filter: blur(18px) saturate(1.35);
   opacity: 0.96;
@@ -175,6 +178,28 @@ body[data-cluster="critical"] .atmo-glow {
   animation: kubagachi-crash-pulse 1.4s ease-in-out infinite;
 }
 
+/* Activity pips — a small status-tinted dot near each ranch critter that reads
+   as liveness. The calm pulse is a slow heartbeat; the urgent variant
+   (crashloop/error) ticks faster and harder. Both settle to a steady, legible
+   dot when motion is reduced (handled in the prefers-reduced-motion block). */
+@keyframes kubagachi-pip {
+  0%, 100% { opacity: 0.45; transform: scale(0.82); }
+  50%      { opacity: 0.95; transform: scale(1.08); }
+}
+.kubagachi-pip {
+  opacity: 0.85;
+  animation: kubagachi-pip 2.6s ease-in-out infinite;
+}
+
+@keyframes kubagachi-pip-urgent {
+  0%, 100% { opacity: 0.5; transform: scale(0.78); }
+  50%      { opacity: 1;   transform: scale(1.28); }
+}
+.kubagachi-pip-urgent {
+  opacity: 0.95;
+  animation: kubagachi-pip-urgent 0.95s ease-in-out infinite;
+}
+
 /* Overlay fade for palette / help. */
 @keyframes yscale-overlay-in {
   from { opacity: 0; transform: translateY(4px) scale(0.995); }
@@ -206,6 +231,8 @@ body[data-cluster="critical"] .atmo-glow {
 @media (prefers-reduced-motion: reduce) {
   .kubagachi-bob,
   .kubagachi-crash-pulse,
+  .kubagachi-pip,
+  .kubagachi-pip-urgent,
   .atmo-vignette,
   .kubagachi-scanline {
     animation: none !important;
