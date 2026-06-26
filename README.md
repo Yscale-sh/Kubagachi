@@ -184,3 +184,22 @@ critters:
     description: a cream cat holding a small sign that reads "AI"
     instructions: keep the "AI" sign visible in every state
 ```
+
+## Acknowledgments
+
+kubagachi stands on the shoulders of two tools we love and used daily while
+building it:
+
+- **[k9s](https://github.com/derailed/k9s)** — the north star for the terminal
+  UI. The `:` command mode, the dense always-live tables, the keyboard-first
+  navigation, and the suspend-and-`kubectl exec` shell passthrough are all
+  lessons learned straight from k9s. If you live in a cluster, you already know
+  why it's the gold standard.
+- **[Freelens](https://github.com/freelensapp/freelens)** — the inspiration for
+  the browser cockpit: a cluster you can *click through*, with resource detail
+  drawers, a navigable resource tree, and an embedded terminal that feels like
+  it belongs in the page. Freelens proved a desktop-grade Kubernetes IDE could
+  stay open and approachable.
+
+The critters are ours. Everything that feels familiar and fast, we owe to the
+prior art above — thank you for making cluster work humane.
