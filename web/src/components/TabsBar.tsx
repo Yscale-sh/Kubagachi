@@ -13,6 +13,7 @@ import {
   FileKey,
   FileText,
   GitBranch,
+  GitMerge,
   Globe,
   HardDrive,
   Heart,
@@ -51,8 +52,8 @@ const ICONS: Record<TabKind, LucideIcon> = {
   search: Search,
   kubagachi: Heart,
   // gitops · flux
-  flux: GitBranch,
-  "flux-kustomizations": Package,
+  flux: GitMerge,
+  "flux-kustomizations": Layers,
   "flux-helmreleases": Package,
   "flux-sources": GitBranch,
   // workloads

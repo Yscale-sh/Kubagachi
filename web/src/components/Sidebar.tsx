@@ -11,6 +11,7 @@ import {
   type TabKind,
 } from "../store/workspace";
 import { iconForKind } from "./TabsBar";
+import { matchesFluxFilter, type FluxFilter } from "./FluxTab";
 
 interface LeafEntry {
   kind: TabKind;
@@ -31,6 +32,10 @@ interface GroupEntry {
 }
 
 const len = <T,>(arr: T[]): number => arr.length;
+
+/** Count the flux objects in the snapshot that fall under a given filter. */
+const fluxCount = (c: Cluster, filter: FluxFilter): number =>
+  c.flux.reduce((n, f) => (matchesFluxFilter(f, filter) ? n + 1 : n), 0);
 
 /**
  * Note: the Kubagachi group is injected at render-time inside `Sidebar` so
@@ -59,6 +64,24 @@ const GROUPS: GroupEntry[] = [
       { kind: "ReplicaSet", label: "ReplicaSets", count: (c) => len(c.replicaSets) },
       { kind: "Job", label: "Jobs", count: (c) => len(c.jobs) },
       { kind: "CronJob", label: "CronJobs", count: (c) => len(c.cronJobs) },
+    ],
+  },
+  {
+    id: "flux",
+    label: "Flux",
+    leaves: [
+      { kind: "flux", label: "All", count: (c) => len(c.flux) },
+      {
+        kind: "flux-kustomizations",
+        label: "Kustomizations",
+        count: (c) => fluxCount(c, "kustomizations"),
+      },
+      {
+        kind: "flux-helmreleases",
+        label: "HelmReleases",
+        count: (c) => fluxCount(c, "helmreleases"),
+      },
+      { kind: "flux-sources", label: "Sources", count: (c) => fluxCount(c, "sources") },
     ],
   },
   {
