@@ -246,7 +246,7 @@ export default function Sidebar({ overlay = false }: { overlay?: boolean }) {
         </div>
 
         {/* Footer */}
-        <SidebarFooter collapsed={collapsed} />
+        <SidebarFooter collapsed={collapsed} cluster={cluster} />
       </aside>
     </>
   );
@@ -413,7 +413,25 @@ function SidebarLeaf({ leaf, collapsedSidebar, cluster, open, active, overlay }:
   );
 }
 
-function SidebarFooter({ collapsed }: { collapsed: boolean }) {
+/**
+ * Honest cluster descriptor for the footer — derived from the live snapshot,
+ * never hardcoded. `cluster`/`live` are real connections; `mock`/`demo` aren't.
+ */
+function clusterTag(cluster: Cluster | null): string {
+  if (!cluster) return "connecting…";
+  if (cluster.mode === "cluster" || cluster.mode === "live") {
+    return cluster.context ? `live · ${cluster.context}` : "live cluster";
+  }
+  return "mock cluster";
+}
+
+function SidebarFooter({
+  collapsed,
+  cluster,
+}: {
+  collapsed: boolean;
+  cluster: Cluster | null;
+}) {
   return (
     <div className="shrink-0 border-t border-border px-2 py-2 flex items-center gap-2 font-mono">
       <button
@@ -429,7 +447,7 @@ function SidebarFooter({ collapsed }: { collapsed: boolean }) {
           <span className="text-[11px] text-text font-semibold tracking-tight truncate">
             <span className="text-accent">▮</span> kubagachi
           </span>
-          <span className="text-[10px] text-text-muted">v0.1 · mock cluster</span>
+          <span className="text-[10px] text-text-muted truncate">v0.1 · {clusterTag(cluster)}</span>
         </div>
       )}
     </div>
