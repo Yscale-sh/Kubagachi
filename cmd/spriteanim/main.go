@@ -163,7 +163,7 @@ func run() error {
 
 	dir := flag.String("dir", "critters", "critters directory")
 	input := flag.String("in", "critters.yaml", "input manifest (for workload animations)")
-	provider := flag.String("provider", "gemini", "image provider: gemini | openai")
+	provider := flag.String("provider", "gemini", "image provider: gemini | openai | flux")
 	modelID := flag.String("model", "", "image model id (default: provider's default)")
 	size := flag.String("size", "1536x1024", "image size (openai WxH) / aspect (gemini)")
 	quality := flag.String("quality", "high", "image quality: low | medium | high")
