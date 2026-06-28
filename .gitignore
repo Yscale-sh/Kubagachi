@@ -23,3 +23,5 @@ bakes/
 
 # tsc incremental build cache
 *.tsbuildinfo
+kubagachi.log
+server.log
