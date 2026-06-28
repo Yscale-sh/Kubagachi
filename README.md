@@ -210,15 +210,12 @@ critters:
 
 ## Acknowledgments
 
-We love **[k9s](https://github.com/derailed/k9s)** and
-**[Freelens](https://github.com/freelensapp/freelens)** — kubagachi is what you
-get when you want both of their best interactions in one binary.
+kubagachi is heavily influenced by **[Freelens](https://github.com/freelensapp/freelens)** —
+the browser cockpit I love: click straight into any resource, detail drawers, a
+navigable resource tree, and an embedded terminal that feels native to the page.
+It also picks up some **[k9s](https://github.com/derailed/k9s)**-style terminal
+flow — `:` command mode, dense live tables, and the suspend-and-`kubectl exec`
+shell passthrough.
 
-- **k9s** is how we live in a cluster from the keyboard: `:` command mode, dense
-  always-live tables, and the suspend-and-`kubectl exec` shell passthrough.
-  kubagachi's TUI chases that exact feel.
-- **Freelens** nailed the browser side: click straight into a resource, detail
-  drawers, a navigable resource tree, and an embedded terminal that feels native
-  to the page.
-
-The critters are ours; the interactions we owe to these two. Go use them — they're great.
+The whole point is to make Kubernetes more approachable for everyone. The
+critters are ours.
