@@ -186,26 +186,37 @@ stream `state.ClusterState` snapshots over a channel, and expose the same
 - **Tested without a TTY.** `go test ./...` exercises the model lifecycle,
   rendering, search and the demo source.
 
-## Critter sprite generation (experimental)
+## Generating critters
 
-`pkg/critterforge` + `cmd/critterforge` generate per-service pixel-art
-critters with Gemini's image API — seven state sprites per critter, with the
-canonical "running" sprite fed back as a reference so the character stays
-consistent across moods.
+The critters that ship in `critters/` were made with `pkg/critterforge` +
+`cmd/critterforge` on **Gemini's image API at high quality**. Each critter is
+anchored to a canonical base sprite, fed back into every frame so the mascot
+stays the same character across all of its moods.
 
-1. Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/)
-   and put it in `.env` at the repo root: `GEMINI_API_KEY=…`
-2. `go run ./cmd/critterforge generate`
+The canonical pipeline is two sheet-based stages:
 
-Defaults read `critters.yaml` and write PNGs + `manifest.json` to
-`./critters/`. Cached sprites are skipped on re-runs; `--force` re-rolls.
-Preview the gallery with `go run ./cmd/critterview`.
+```sh
+# keyed status sheet — every state in one transparent row, flood-keyed to alpha
+go run ./cmd/critterforge sheet  --provider gemini --quality high
+
+# per-state animation decks (idle bob, etc.)
+go run ./cmd/spriteanim          --provider gemini --quality high
+```
+
+Put a [Google AI Studio](https://aistudio.google.com/) key in `.env` at the repo
+root (`GEMINI_API_KEY=…`); OpenAI's `gpt-image` works too via `--provider openai`.
+Input is `critters.yaml`; PNGs + `manifest.json` are written to `./critters/`,
+and cached sprites are skipped unless `--force`. Preview the gallery with
+`go run ./cmd/critterview`.
 
 ```yaml
 critters:
-  - name: claude-code
-    description: a cream cat holding a small sign that reads "AI"
-    instructions: keep the "AI" sign visible in every state
+  - name: api-gateway
+    mascot: white cat
+    personality: poised, watchful, routes-everything-cleanly
+    visual_role: API gateway / ingress pod mascot
+    visual_design: [white cat body, subtle pink details, small whiskers, dark outline]
+    instructions: keep the silhouette clean and readable
 ```
 
 ## Acknowledgments

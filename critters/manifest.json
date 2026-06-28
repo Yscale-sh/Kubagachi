@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "model": "openai:gpt-image-1.5:1024x1024:low",
+  "model": "gemini:gemini-3-pro-image-preview:1:1:4K",
   "prompt_version": "v3",
   "generated_at": "2026-06-13T18:48:08.906391Z",
   "critters": {
