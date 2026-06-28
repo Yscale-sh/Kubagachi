@@ -210,12 +210,6 @@ critters:
 
 ## Acknowledgments
 
-kubagachi is heavily influenced by **[Freelens](https://github.com/freelensapp/freelens)** —
-the browser cockpit I love: click straight into any resource, detail drawers, a
-navigable resource tree, and an embedded terminal that feels native to the page.
-It also picks up some **[k9s](https://github.com/derailed/k9s)**-style terminal
-flow — `:` command mode, dense live tables, and the suspend-and-`kubectl exec`
-shell passthrough.
-
-The whole point is to make Kubernetes more approachable for everyone. The
-critters are ours.
+This is meant to be a happy [Freelens](https://github.com/freelensapp/freelens)-like
+experience, with some [k9s](https://github.com/derailed/k9s)-like controls, and
+cute characters to make Kubernetes more approachable.
