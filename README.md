@@ -3,6 +3,8 @@
 Your cluster, alive. **kubagachi** is a Kubernetes cockpit where every pod is
 a tamagotchi — k9s meets Freelens, with Flux as a first-class citizen.
 
+![The kubagachi habitat dashboard — every pod is a pixel critter and the cluster's health is rendered as mood](docs/screenshots/overview.png)
+
 Two faces, one binary:
 
 - **Terminal** — a k9s-style TUI with `:` commands, habitat view, real logs /
@@ -22,6 +24,27 @@ A pod's health is its critter's mood: a content cat for `Running`, a sleepy
 critter for `BackOff`, a tombstone for `CrashLoopBackOff`, a fading ghost for
 `Terminating`. Restarts make them sick. You care for them with real
 operations — logs, shells, deletes, flux reconciles.
+
+## The browser cockpit
+
+`--web` serves the same live cluster as a clickable dashboard — the full
+keyboard layer, resource detail drawers, a navigable resource tree, an embedded
+terminal (real `kubectl exec` over a websocket), and pixel-art critters whose
+mood **is** the pod's health. The whole room reacts: a healthy cluster glows
+warm, a degraded one tenses up, and sick pods get a colored halo and pulse.
+
+**Ranch view** — press `v` to swap the habitat grid for a calm, Pokémon-ranch
+layout: each node becomes a grassy platform and its pods are critters scattered
+across it.
+
+![Ranch view — pods as pixel critters on per-node grassy platforms](docs/screenshots/ranch.png)
+
+**Flux, first-class** — the `:` palette (`:flux`) opens a k9s-style view of your
+GitOps state: Kustomizations, HelmReleases and sources with readiness, source
+chain and revision, plus one-key reconcile / suspend. Toggle table ↔ dependency
+graph.
+
+![Flux resources — readiness, revision, and one-key reconcile / suspend](docs/screenshots/flux.png)
 
 ## Run
 
