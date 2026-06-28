@@ -4,18 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 )
 
 // BuildImageModel selects an image provider from a shared set of flags so every
-// CLI (generate, sheet, spriteanim) behaves identically. Gemini is the default
-// — it's what the original critters were generated with and produces crisper,
-// more consistent sheets. Provider credentials/config are read from the
-// environment (GEMINI_API_KEY, OPENAI_API_KEY / OPEN_AI_API_KEY, FLUX_ENDPOINT,
-// optional FLUX_API_KEY, and FLUX_TIMEOUT_SECONDS).
+// CLI (generate, sheet, spriteanim) behaves identically. Provider credentials
+// are read from the environment (GEMINI_API_KEY, OPENAI_API_KEY / OPEN_AI_API_KEY).
 //
-//	provider: "gemini" (default) | "openai" | "flux"
+//	provider: "gemini" (default) | "openai"
 //	model:    "" → the provider's default model
 //	size:     OpenAI WxH (e.g. "1536x1024"); mapped to a Gemini aspect ratio
 //	quality:  "low" | "medium" | "high" (Gemini: 1K | 2K | 4K)
@@ -49,19 +45,8 @@ func BuildImageModel(provider, model, size, quality string) (ImageModel, error) 
 			Size:    size,
 			Quality: quality,
 		})
-	case "flux":
-		timeoutSeconds, err := fluxTimeoutSeconds()
-		if err != nil {
-			return nil, err
-		}
-		return NewFluxModel(FluxOptions{
-			Endpoint:       fluxEndpoint(),
-			APIKey:         fluxAPIKey(),
-			Model:          model,
-			TimeoutSeconds: timeoutSeconds,
-		})
 	default:
-		return nil, fmt.Errorf("unknown --provider %q (use gemini, openai, or flux)", provider)
+		return nil, fmt.Errorf("unknown --provider %q (use gemini or openai)", provider)
 	}
 }
 
@@ -74,29 +59,6 @@ func openAIAPIKey() string {
 
 func geminiAPIKey() string {
 	return strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
-}
-
-func fluxEndpoint() string {
-	if v := strings.TrimSpace(os.Getenv("FLUX_ENDPOINT")); v != "" {
-		return v
-	}
-	return defaultFluxEndpoint
-}
-
-func fluxAPIKey() string {
-	return strings.TrimSpace(os.Getenv("FLUX_API_KEY"))
-}
-
-func fluxTimeoutSeconds() (int, error) {
-	v := strings.TrimSpace(os.Getenv("FLUX_TIMEOUT_SECONDS"))
-	if v == "" {
-		return defaultFluxTimeoutSeconds, nil
-	}
-	seconds, err := strconv.Atoi(v)
-	if err != nil || seconds <= 0 {
-		return 0, fmt.Errorf("FLUX_TIMEOUT_SECONDS must be a positive integer, got %q", v)
-	}
-	return seconds, nil
 }
 
 // qualityToImageSize maps --quality onto Gemini's image-size tiers (high =

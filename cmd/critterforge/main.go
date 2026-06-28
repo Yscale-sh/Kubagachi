@@ -1,5 +1,5 @@
 // Command critterforge generates pixel-art critter sprites via an image model
-// (Gemini by default, OpenAI or FLUX optional) and caches results on disk.
+// (Gemini by default, OpenAI optional) and caches results on disk.
 //
 // The canonical pipeline is two sheet-based stages — no per-state single tiles:
 //
@@ -64,7 +64,7 @@ func usage() {
     go run ./cmd/spriteanim --only NAME --provider gemini --quality high
 
 shared flags:
-  --provider NAME      image provider: gemini (default) | openai | flux
+  --provider NAME      image provider: gemini (default) | openai
   --model MODEL_ID     image model id (default: the provider's default)
   --quality QUALITY    low | medium | high  (gemini: 1K | 2K | 4K; default high)
   --only NAMES         comma-separated critter names (default: all)
@@ -72,7 +72,7 @@ shared flags:
   --out DIR            output directory (default: critters)
   --force              regenerate even when cached / overwrite existing
 
-GEMINI_API_KEY, OPENAI_API_KEY / OPEN_AI_API_KEY, or FLUX_ENDPOINT can be set in the env or a .env file.
+GEMINI_API_KEY or OPENAI_API_KEY / OPEN_AI_API_KEY can be set in the env or a .env file.
 `)
 }
 
@@ -82,7 +82,7 @@ func runGenerate(args []string) error {
 	output := fs.String("out", "critters", "output directory")
 	force := fs.Bool("force", false, "regenerate even when cached")
 	concurrency := fs.Int("concurrency", 4, "critters in flight at once")
-	provider := fs.String("provider", "gemini", "image provider: gemini | openai | flux")
+	provider := fs.String("provider", "gemini", "image provider: gemini | openai")
 	model := fs.String("model", "", "image model id (default: provider's default)")
 	size := fs.String("size", "1024x1024", "image size (openai WxH) / aspect (gemini)")
 	quality := fs.String("quality", "high", "image quality: low | medium | high")
@@ -128,7 +128,7 @@ func runSheet(args []string) error {
 	input := fs.String("in", "critters.yaml", "input manifest path")
 	output := fs.String("out", "critters", "output directory")
 	force := fs.Bool("force", false, "overwrite existing keyed sheets")
-	provider := fs.String("provider", "gemini", "image provider: gemini | openai | flux")
+	provider := fs.String("provider", "gemini", "image provider: gemini | openai")
 	model := fs.String("model", "", "image model id (default: provider's default)")
 	quality := fs.String("quality", "high", "image quality: low | medium | high")
 	only := fs.String("only", "", "comma-separated critter names to generate (default: all)")
