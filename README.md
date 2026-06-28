@@ -186,6 +186,23 @@ stream `state.ClusterState` snapshots over a channel, and expose the same
 - **Tested without a TTY.** `go test ./...` exercises the model lifecycle,
   rendering, search and the demo source.
 
+## Critters, frame by frame
+
+Each critter is a single keyed sprite sheet — eight moods in one transparent
+row. These two are the regulars, Nori and Cartogopher:
+
+![Nori and Cartogopher keyed sprite sheets — eight moods each](docs/screenshots/critter-sheets.png)
+
+Nothing repaints to animate. The UI slices the sheet into its eight frames once,
+stacks them, and just toggles which one is `display: block` — so a pod's mood is
+a single style flip, never a re-fetch or a re-layout. A `Running` pod sits on
+frame one; a `CrashLoopBackOff` pod snaps to the angry red frame.
+
+Even at eight frames the read is clear, and it scales with the sheet: generate
+more frames and tune the swap delay, and the same frame-replace mechanism plays
+them as full looping animations — idle bobs, breathing, a tail flick — straight
+from whatever sheet you generate, no engine changes.
+
 ## Generating critters
 
 The critters that ship in `critters/` were made with `pkg/critterforge` +
