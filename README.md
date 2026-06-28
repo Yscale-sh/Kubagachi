@@ -210,19 +210,15 @@ critters:
 
 ## Acknowledgments
 
-kubagachi stands on the shoulders of two tools we love and used daily while
-building it:
+We love **[k9s](https://github.com/derailed/k9s)** and
+**[Freelens](https://github.com/freelensapp/freelens)** — kubagachi is what you
+get when you want both of their best interactions in one binary.
 
-- **[k9s](https://github.com/derailed/k9s)** — the north star for the terminal
-  UI. The `:` command mode, the dense always-live tables, the keyboard-first
-  navigation, and the suspend-and-`kubectl exec` shell passthrough are all
-  lessons learned straight from k9s. If you live in a cluster, you already know
-  why it's the gold standard.
-- **[Freelens](https://github.com/freelensapp/freelens)** — the inspiration for
-  the browser cockpit: a cluster you can *click through*, with resource detail
-  drawers, a navigable resource tree, and an embedded terminal that feels like
-  it belongs in the page. Freelens proved a desktop-grade Kubernetes IDE could
-  stay open and approachable.
+- **k9s** is how we live in a cluster from the keyboard: `:` command mode, dense
+  always-live tables, and the suspend-and-`kubectl exec` shell passthrough.
+  kubagachi's TUI chases that exact feel.
+- **Freelens** nailed the browser side: click straight into a resource, detail
+  drawers, a navigable resource tree, and an embedded terminal that feels native
+  to the page.
 
-The critters are ours. Everything that feels familiar and fast, we owe to the
-prior art above — thank you for making cluster work humane.
+The critters are ours; the interactions we owe to these two. Go use them — they're great.
