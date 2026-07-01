@@ -1,0 +1,135 @@
+# Default values for kubagachi.
+# https://github.com/JakeNesler/Kubagachi
+
+# -- Number of kubagachi replicas. One is plenty — it's a read-mostly cockpit
+# and each replica holds its own informer cache.
+replicaCount: 1
+
+image:
+  repository: ghcr.io/jakenesler/kubagachi
+  # Overrides the image tag. Defaults to the chart's appVersion when empty, so
+  # the chart pins a reproducible release. Set to "latest" to track main, or a
+  # `sha-<digest>` tag for an exact pin.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Secrets for pulling from a private registry. The GHCR image is public, so
+# this is empty by default.
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Cluster-access mode. This drives the container entrypoint, which picks:
+#   in-cluster  → use the pod ServiceAccount token (needs rbac.create below).
+#   demo        → no cluster access at all; fake data (great for a public demo).
+#   kubeconfig  → target a DIFFERENT cluster via kubeconfig.* below.
+mode: in-cluster
+
+kubeconfig:
+  # Inline kubeconfig contents — stored in a Secret and passed as KUBECONFIG_DATA.
+  # Only used when mode == "kubeconfig".
+  data: ""
+  # Or reference an existing Secret instead of inlining. The key must hold a
+  # full kubeconfig. Takes precedence over `data`.
+  existingSecret: ""
+  secretKey: kubeconfig
+
+serviceAccount:
+  # Create a dedicated ServiceAccount for the pod. Required for in-cluster mode.
+  create: true
+  # Use a specific name instead of the generated one.
+  name: ""
+  annotations: {}
+  # Mount the SA token. Forced off in demo mode (so the entrypoint falls back to
+  # fake data) and in kubeconfig mode (the mounted token isn't used).
+  automount: true
+
+rbac:
+  # Create the ClusterRole + ClusterRoleBinding granting the pod what the live
+  # cockpit needs. Only relevant for mode == "in-cluster".
+  create: true
+  # WARNING: cluster-wide read is BROAD (every resource kind — informers stream
+  # them) and pods/exec + pods/attach back the embedded terminal. That's fine
+  # for a homelab cockpit; scope it down for anything shared or production
+  # (set rbac.create: false and bind your own least-privilege Role/ClusterRole).
+  clusterRead: true
+  # Grant pods/exec + pods/attach (the in-pod terminal). Turn off to make the
+  # cockpit read-only (the terminal button will just fail).
+  podExec: true
+
+service:
+  type: ClusterIP
+  port: 80
+  # The container serves on 8080 (see the Dockerfile EXPOSE / entrypoint PORT).
+  targetPort: 8080
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  # e.g. for Traefik:
+  #   traefik.ingress.kubernetes.io/router.entrypoints: websecure
+  hosts:
+    - host: kubagachi.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: kubagachi-tls
+  #    hosts:
+  #      - kubagachi.local
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+# TCP probes: the web server is live as soon as it binds, regardless of cluster
+# connectivity, so a port-open check is the honest readiness signal.
+livenessProbe:
+  tcpSocket:
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 20
+readinessProbe:
+  tcpSocket:
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 10
+
+# Pod-level security context. The image runs as the unprivileged `app` user
+# (uid 10001) baked into the Dockerfile.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level security context. readOnlyRootFilesystem is on — the
+# entrypoint writes its synthesized kubeconfig (and kubectl its cache) under
+# /tmp, which the chart mounts as a writable emptyDir with HOME=/tmp.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+podAnnotations: {}
+podLabels: {}
+
+# Extra environment variables passed to the container (list of {name,value} or
+# valueFrom entries).
+extraEnv: []
+#  - name: KUBECTL_VERSION
+#    value: v1.31.5
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

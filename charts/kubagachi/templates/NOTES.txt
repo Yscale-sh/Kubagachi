@@ -1,0 +1,33 @@
+kubagachi is deployed 🐱
+
+  Release:   {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+  Mode:      {{ .Values.mode }}
+  Image:     {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+
+{{- if eq .Values.mode "in-cluster" }}
+{{- if not .Values.rbac.create }}
+
+  ⚠  mode is "in-cluster" but rbac.create is false — the pod's ServiceAccount
+     has no cluster-read access and will fall back to the demo habitat. Grant
+     RBAC (rbac.create=true) or bind your own Role to
+     {{ include "kubagachi.serviceAccountName" . }}.
+{{- end }}
+{{- end }}
+
+Reach the cockpit:
+
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else if eq .Values.service.type "LoadBalancer" }}
+  Waiting for the LoadBalancer IP:
+    kubectl -n {{ .Release.Namespace }} get svc {{ include "kubagachi.fullname" . }} -w
+{{- else }}
+  Port-forward and open http://127.0.0.1:8080
+
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "kubagachi.fullname" . }} 8080:{{ .Values.service.port }}
+{{- end }}
+
+The `:` command palette drives everything — try `:habitat`, `:flux`, `:events`.

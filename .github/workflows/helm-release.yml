@@ -1,0 +1,95 @@
+name: chart-release
+
+# Package the Helm chart as an OCI artifact and push it to GHCR, next to the
+# container image. Everything is derived from the GitHub context, so this is
+# portable across forks with no edits:
+#
+#   image →  ghcr.io/<owner>/<repo>
+#   chart →  ghcr.io/<owner>/charts/<repo>        (helm install oci://…)
+#
+# For this repo that resolves to ghcr.io/jakenesler/kubagachi (image) and
+# ghcr.io/jakenesler/charts/kubagachi (chart).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "charts/**"
+      - ".github/workflows/helm-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: Derive names from the GitHub context
+        id: names
+        run: |
+          set -euo pipefail
+          FULL='${{ github.repository }}'                        # Owner/Repo
+          OWNER="$(echo "${FULL%%/*}" | tr '[:upper:]' '[:lower:]')"
+          REPO="$(echo "${FULL##*/}"  | tr '[:upper:]' '[:lower:]')"
+          {
+            echo "owner=$OWNER"
+            echo "repo=$REPO"
+            echo "image=ghcr.io/$OWNER/$REPO"
+            echo "chart_ns=oci://ghcr.io/$OWNER/charts"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Stamp the chart with this repo's identity
+        env:
+          OWNER: ${{ steps.names.outputs.owner }}
+          REPO: ${{ steps.names.outputs.repo }}
+          IMAGE: ${{ steps.names.outputs.image }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Name the OCI artifact after the repo (goofy per-fork; canonical
+          # upstream) and point the chart's default image at this repo's image.
+          # yq (mikefarah v4) ships on ubuntu-latest and preserves comments.
+          yq -i ".name = strenv(REPO)"                         charts/kubagachi/Chart.yaml
+          yq -i ".home = strenv(REPO_URL)"                     charts/kubagachi/Chart.yaml
+          yq -i ".sources[0] = strenv(REPO_URL)"               charts/kubagachi/Chart.yaml
+          yq -i ".icon = strenv(REPO_URL) + \"/raw/main/critters/claude-code/running.png\"" charts/kubagachi/Chart.yaml
+          yq -i ".image.repository = strenv(IMAGE)"            charts/kubagachi/values.yaml
+          echo "----- stamped Chart.yaml (name/home/sources/icon) -----"
+          yq '{"name": .name, "home": .home, "sources": .sources, "icon": .icon, "version": .version, "appVersion": .appVersion}' charts/kubagachi/Chart.yaml
+          echo "----- image default -----"
+          yq '.image.repository' charts/kubagachi/values.yaml
+
+      - name: Log in to GHCR
+        run: |
+          echo '${{ secrets.GITHUB_TOKEN }}' \
+            | helm registry login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+      - name: Package and push the chart
+        run: |
+          set -euo pipefail
+          helm package charts/kubagachi --destination dist
+          CHART_TGZ="$(ls dist/*.tgz)"
+          echo "pushing $CHART_TGZ → ${{ steps.names.outputs.chart_ns }}/${{ steps.names.outputs.repo }}"
+          helm push "$CHART_TGZ" '${{ steps.names.outputs.chart_ns }}'
+
+      - name: Summary
+        run: |
+          {
+            echo "### Chart published 📦"
+            echo ""
+            echo '```sh'
+            echo "helm install ${{ steps.names.outputs.repo }} \\"
+            echo "  oci://ghcr.io/${{ steps.names.outputs.owner }}/charts/${{ steps.names.outputs.repo }} \\"
+            echo "  --version \$(yq '.version' charts/kubagachi/Chart.yaml)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

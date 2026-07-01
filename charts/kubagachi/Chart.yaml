@@ -1,0 +1,39 @@
+apiVersion: v2
+name: kubagachi
+description: |
+  kubagachi — a Kubernetes cockpit where every pod is a pixel-art tamagotchi.
+  k9s meets Freelens with Flux as a first-class citizen: a live habitat
+  dashboard, an embedded kubectl-exec terminal, logs / describe / delete, and
+  one-key Flux reconcile / suspend.
+type: application
+
+# Chart version — bump on every change to the chart itself (SemVer).
+version: 0.1.0
+# App version — the kubagachi release this chart deploys by default. The image
+# tag defaults to this (see values.yaml image.tag), so publishing a matching
+# `vX.Y.Z` git tag builds ghcr.io/.../kubagachi:X.Y.Z for a reproducible pin.
+appVersion: "0.1.0"
+
+kubeVersion: ">=1.23.0-0"
+
+home: https://github.com/JakeNesler/Kubagachi
+sources:
+  - https://github.com/JakeNesler/Kubagachi
+icon: https://raw.githubusercontent.com/JakeNesler/Kubagachi/main/critters/claude-code/running.png
+
+keywords:
+  - kubernetes
+  - dashboard
+  - k9s
+  - freelens
+  - flux
+  - gitops
+  - tui
+  - tamagotchi
+
+maintainers:
+  - name: JakeNesler
+    url: https://github.com/JakeNesler
+
+annotations:
+  artifacthub.io/prerelease: "true"

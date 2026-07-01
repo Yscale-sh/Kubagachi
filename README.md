@@ -80,6 +80,31 @@ The web UI ships embedded in the binary. To rebuild it:
 cd web && npm install && npm run build   # output is embedded via web/embed.go
 ```
 
+## Deploy to Kubernetes (Helm)
+
+CI builds the image multi-arch (**amd64 + arm64**) and pushes both the image and
+the Helm chart to GHCR as OCI artifacts — no external chart repo to add:
+
+```sh
+helm install kubagachi \
+  oci://ghcr.io/jakenesler/charts/kubagachi \
+  --version 0.1.0 \
+  --namespace kubagachi --create-namespace
+
+# then open the cockpit
+kubectl -n kubagachi port-forward svc/kubagachi 8080:80   # http://127.0.0.1:8080
+```
+
+In-cluster mode (the default) watches the cluster it runs in via the pod's
+ServiceAccount — the chart provisions the cluster-read + `pods/exec` RBAC the
+cockpit needs. `--set mode=demo` runs the fake habitat with no cluster access;
+`--set mode=kubeconfig` targets a different cluster. See
+[`charts/kubagachi`](charts/kubagachi/README.md) for all values.
+
+Image: `ghcr.io/jakenesler/kubagachi`. Chart:
+`ghcr.io/jakenesler/charts/kubagachi`. Both names are derived from the repo by
+CI, so nothing is hardcoded.
+
 ## CLI flags
 
 | Flag | Description |
