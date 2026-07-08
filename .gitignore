@@ -1,0 +1,49 @@
+# secrets — never commit
+.env
+.env.*
+
+# node
+node_modules/
+web/node_modules/
+
+# go build artifacts (binaries at repo root only — do NOT ignore cmd/*/,
+# which is the package source)
+/kubagachi
+/critterforge
+/critterforged
+/critterview
+*.test
+*.out
+*.prof
+
+# editor / OS
+.DS_Store
+*.swp
+.mission/
+
+# cartogopher index cache (regenerated tooling artifacts)
+bakes/
+
+# tsc incremental build cache
+*.tsbuildinfo
+kubagachi.log
+server.log
+
+# kubagachi.com public landing app source is tracked; keep generated artifacts local
+bold-frontend/dist/
+bold-frontend/landing-page-screenshot.png
+
+# tooling + cockpit artifacts
+.lw-uploads/
+.mission/
+bakes/
+fast.yaml
+
+# per-user Claude Code settings (local machine paths / permission grants)
+.claude/settings.local.json
+
+# stray browser-automation screenshot artifact (agent-browser --full-page)
+--full-page
+
+# generated TS project-refs output (web/tsconfig.node.json)
+web/dist-node-types/

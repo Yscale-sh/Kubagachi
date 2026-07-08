@@ -1,0 +1,84 @@
+name: 🐛 Bug report
+description: Something in the cockpit is broken or wrong.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! We appreciate contributions of all kinds — the one
+        thing we ask is that you **use your brain**: make sure this is a real,
+        reproducible problem and describe it in your own words below. Please
+        search existing issues first.
+
+  - type: textarea
+    id: human-summary
+    attributes:
+      label: In your own words (human-written)
+      description: >
+        Written by you, a human — not pasted from an AI. What went wrong, and why
+        does it matter? A few honest sentences is perfect. This is the most
+        useful part of the report; obvious auto-generated boilerplate will be
+        closed with a pointer to CONTRIBUTING.md.
+      placeholder: "I opened the flux view and the reconcile button did nothing — no error, no change…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: How do we see it too?
+      placeholder: |
+        1. go run ./cmd/kubagachi --demo --web
+        2. press ':' and type flux
+        3. select a Kustomization, press r
+        4. …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected vs. what happened
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which face were you using?
+      options:
+        - Browser cockpit (--web)
+        - Terminal UI
+        - Demo mode (--demo)
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Release tag, chart version, or git SHA.
+      placeholder: "v0.1.0 / abfd943"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Relevant output, or a screenshot of the broken view. Redact anything sensitive.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: sanity
+    attributes:
+      label: Sanity check
+      options:
+        - label: I searched existing issues and this isn't a duplicate.
+          required: true
+        - label: I wrote the summary above myself, and I've confirmed this actually reproduces.
+          required: true

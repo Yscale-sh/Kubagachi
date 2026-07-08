@@ -1,0 +1,49 @@
+name: ✨ Feature request
+description: Suggest a feature, a new critter, or an improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas of all kinds are welcome — features, critters, UX, docs. The one
+        thing we ask: **use your brain** first. Is this a real need you've
+        actually hit, and does the idea hold together? Tell us in your own words
+        below. Drive-by "wouldn't it be cool if…" with no thought behind it gets
+        closed.
+
+  - type: textarea
+    id: human-summary
+    attributes:
+      label: In your own words (human-written)
+      description: >
+        Written by you, a human. What problem are you actually hitting, or what
+        would make the cockpit better and why? Don't paste an AI-generated pitch —
+        we want your reasoning.
+      placeholder: "When a node has 40 pods the habitat grid gets unreadable; I keep wanting to collapse a node…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like to see
+      description: A rough shape of the solution. It's fine to be uncertain — say so.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: sanity
+    attributes:
+      label: Sanity check
+      options:
+        - label: I searched existing issues and this isn't already requested.
+          required: true
+        - label: I've used my brain — this is a real need I've thought through, not a drive-by idea, and I wrote the above myself.
+          required: true

@@ -1,0 +1,337 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  @apply bg-bg-base text-text font-mono text-[13px];
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img.pixelated {
+  image-rendering: pixelated;
+}
+
+/* -------------------------------------------------------------------------
+ * k9s-inspired TUI skin: square corners on chrome, brackets on labels,
+ * status glyphs lead every row. We intentionally *do not* set
+ * `border-radius: 0` globally because <input>/<kbd>/<select> on macOS look
+ * worse without their native radius; we override structural panels instead.
+ * ---------------------------------------------------------------------- */
+
+.k9s-square,
+.k9s-square::before,
+.k9s-square::after {
+  border-radius: 0 !important;
+}
+
+/* Bracketed label, like `[ Pods (15) ]`. Uses ::before/::after so the
+   brackets don't get split if the label wraps. */
+.k9s-bracket {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4ch;
+}
+.k9s-bracket::before { content: "["; opacity: 0.55; }
+.k9s-bracket::after  { content: "]"; opacity: 0.55; }
+
+/* Colored status glyph used in dense tables. */
+.k9s-glyph {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  display: inline-block;
+  width: 1ch;
+  text-align: center;
+  line-height: 1;
+}
+
+/* -------------------------------------------------------------------------
+ * Yscale atmosphere — film grain, dual ambient glow, vignette.
+ * All layers are fixed, pointer-events-none, and sit above the UI at very
+ * low intensity so they read as light, not chrome.
+ * ---------------------------------------------------------------------- */
+
+/* The first glow stop is driven by --mood-glow, set on <body> by the habitat
+   from aggregate cluster health (gold when thriving → amber → red on crisis),
+   so the whole room subtly takes on the cluster's mood. Defaults to gold. */
+:root {
+  --mood-glow: rgba(201, 184, 138, 0.14);
+  --mood-glow-2: rgba(93, 184, 232, 0.08);
+}
+
+.atmo-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 70;
+  /* The two glow cores are pulled toward the open habitat (center column) and
+     their reach is trimmed, so the dense side rails / event log sit in calmer
+     atmosphere where text always wins, while the habitat stays lively. */
+  background:
+    radial-gradient(680px 520px at 30% 0%, var(--mood-glow), transparent 60%),
+    radial-gradient(720px 600px at 70% 100%, var(--mood-glow-2), transparent 62%),
+    linear-gradient(135deg, rgba(93, 184, 232, 0.035), transparent 40%, rgba(224, 123, 154, 0.04) 72%, transparent);
+  filter: blur(18px) saturate(1.35);
+  opacity: 0.96;
+  transition: background 900ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.atmo-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 71;
+  background: radial-gradient(ellipse 120% 100% at 50% 45%, transparent 58%, rgba(0, 0, 0, 0.32) 100%);
+  transform-origin: center;
+  animation: kubagachi-breath 7s ease-in-out infinite;
+}
+
+.atmo-grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 72;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  transition: opacity 900ms ease;
+}
+
+/* When the cluster has a critical pod, the room gets grittier: grain ticks up
+   and the vignette deepens. Kept low so it reads as tension, not chrome. */
+body[data-cluster="critical"] .atmo-grain {
+  opacity: 0.09;
+}
+body[data-cluster="critical"] .atmo-vignette {
+  background: radial-gradient(ellipse 120% 100% at 50% 45%, transparent 54%, rgba(40, 0, 0, 0.42) 100%);
+}
+body[data-cluster="critical"] .atmo-glow {
+  opacity: 1;
+  filter: blur(16px) saturate(1.55);
+}
+
+/* A single hairline scanline that sweeps the habitat once when a new crisis
+   begins. Re-mounted (keyed) per crisis so it replays rather than loops. */
+.kubagachi-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  pointer-events: none;
+  z-index: 20;
+  background: linear-gradient(90deg, transparent, rgba(224, 90, 90, 0.65), transparent);
+  animation: kubagachi-scan 1.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #3a3a3a transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #3a3a3a;
+    border-radius: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: #4a4a4a;
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Terminal dock — a floating "pane" for the in-pod shell. Adapts litewindow's
+ * cockpit-terminal polish to the Yscale language: sharp 3px radius (not
+ * litewindow's 10px), a resting drop shadow that lifts the pane off the room,
+ * and a gold focus glow when the shell is active.
+ * ---------------------------------------------------------------------- */
+.term-pane {
+  border: 1px solid #262626; /* border-DEFAULT */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42);
+  transition:
+    border-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.term-pane[data-focused="true"] {
+  border-color: #c9b88a; /* accent */
+  box-shadow:
+    0 0 0 1px rgba(201, 184, 138, 0.14),
+    0 0 26px -10px rgba(201, 184, 138, 0.5),
+    0 14px 40px rgba(0, 0, 0, 0.52);
+}
+
+/* Slim, rounded scrollbar for the xterm viewport (litewindow .xterm-viewport,
+   retuned to kubagachi greys). Touch-drag + wheel scrolling stay usable. */
+.term-pane .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a transparent;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.term-pane .xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+.term-pane .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #3a3a3a; /* border-strong */
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.term-pane .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+  background-clip: padding-box;
+}
+.term-pane .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* -------------------------------------------------------------------------
+ * Kubagachi animations — frame-based mascots stay; ambient motion is toned
+ * down to fit the calmer Yscale chrome.
+ * ---------------------------------------------------------------------- */
+
+/* The terminal dock slides up + fades in on open so launching a shell feels
+   deliberate, not abrupt. Collapsed to instant under reduced-motion below. */
+@keyframes kubagachi-dock-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kubagachi-dock-in {
+  animation: kubagachi-dock-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes kubagachi-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+.kubagachi-bob {
+  animation: kubagachi-bob 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes kubagachi-card-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kubagachi-card-in {
+  animation: kubagachi-card-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes kubagachi-crash-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(216, 138, 138, 0.0); }
+  50%      { box-shadow: 0 0 0 5px rgba(216, 138, 138, 0.35); }
+}
+.kubagachi-crash-pulse {
+  animation: kubagachi-crash-pulse 1.4s ease-in-out infinite;
+}
+
+/* Activity pips — a small status-tinted dot near each ranch critter that reads
+   as liveness. The calm pulse is a slow heartbeat; the urgent variant
+   (crashloop/error) ticks faster and harder. Both settle to a steady, legible
+   dot when motion is reduced (handled in the prefers-reduced-motion block). */
+@keyframes kubagachi-pip {
+  0%, 100% { opacity: 0.45; transform: scale(0.82); }
+  50%      { opacity: 0.95; transform: scale(1.08); }
+}
+.kubagachi-pip {
+  opacity: 0.85;
+  animation: kubagachi-pip 2.6s ease-in-out infinite;
+}
+
+@keyframes kubagachi-pip-urgent {
+  0%, 100% { opacity: 0.5; transform: scale(0.78); }
+  50%      { opacity: 1;   transform: scale(1.28); }
+}
+.kubagachi-pip-urgent {
+  opacity: 0.95;
+  animation: kubagachi-pip-urgent 0.95s ease-in-out infinite;
+}
+
+/* Overlay fade for palette / help. */
+@keyframes yscale-overlay-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.995); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.yscale-overlay-in {
+  animation: yscale-overlay-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Flux graph edge current: dash periods total 36px, so each loop is seamless. */
+@keyframes flux-flow {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -36; }
+}
+.flux-edge-flow {
+  animation: flux-flow 5.8s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(255, 225, 163, 0.46));
+  mix-blend-mode: screen;
+  pointer-events: none;
+  will-change: stroke-dashoffset;
+}
+.flux-edge-flow--depends {
+  animation-duration: 6.6s;
+}
+.flux-edge-flow--hot {
+  animation-duration: 3.2s;
+  filter: drop-shadow(0 0 6px rgba(255, 231, 173, 0.72));
+}
+.flux-edge-flow--depends.flux-edge-flow--hot {
+  animation-duration: 3.7s;
+}
+
+/* Ambient "alive" baseline — the habitat slowly breathes. ~1% vignette scale. */
+@keyframes kubagachi-breath {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.012); }
+}
+
+/* One-shot crisis scanline sweep, top → bottom. */
+@keyframes kubagachi-scan {
+  from { transform: translateY(0);        opacity: 0; }
+  10%  {                                   opacity: 1; }
+  to   { transform: translateY(100vh);    opacity: 0; }
+}
+
+/* -------------------------------------------------------------------------
+ * Accessibility — honor prefers-reduced-motion. Motion-sensitive users keep
+ * the full Yscale look (color, grain, glow) but lose the continuous motion:
+ * sprites settle to a single frame (see anim-clock.ts), and every looping or
+ * transform animation is disabled. The one-shot reveals collapse to instant.
+ * ---------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .kubagachi-bob,
+  .kubagachi-crash-pulse,
+  .kubagachi-pip,
+  .kubagachi-pip-urgent,
+  .flux-edge-flow,
+  .atmo-vignette,
+  .kubagachi-scanline {
+    animation: none !important;
+  }
+  .flux-edge-flow {
+    stroke-dashoffset: 0 !important;
+    will-change: auto;
+  }
+  .kubagachi-card-in,
+  .yscale-overlay-in,
+  .kubagachi-dock-in {
+    animation-duration: 1ms !important;
+  }
+  .atmo-glow,
+  .term-pane {
+    transition: none !important;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}

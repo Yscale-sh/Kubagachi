@@ -1,0 +1,51 @@
+# kubagachi — cluster RBAC (applied out-of-band)
+#
+# The idp deploy.yaml contract does not model arbitrary cluster RBAC, so this
+# lives here, version-controlled, and is applied directly. It grants the dev
+# pod's ServiceAccount (kubagachi-dev-app/default) what the live-cluster cockpit
+# needs:
+#   • cluster-wide read (informers stream every resource kind),
+#   • cluster-wide write (the cockpit's operate surface: YAML edit + server-side
+#     apply, delete-any, scale, rollout-restart, node cordon),
+#   • create on pods/exec + pods/attach — the in-pod terminal shell, and
+#   • create on pods/portforward — the port-forward feature.
+#
+# Apply / re-apply:
+#   kubectl apply -f deploy/rbac.yaml
+#
+# NOTE: cluster-wide read+WRITE is effectively cluster-admin — appropriate for a
+# dev cockpit on a homelab cluster, NOT a template for prod. A prod deploy should
+# scope this down (namespaces, resources, verbs) and bind a dedicated
+# ServiceAccount.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubagachi-cluster-read
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  # The operate surface: server-side apply (create/patch), delete-any, scale and
+  # rollout-restart (patch), node cordon (patch).
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["create", "update", "patch", "delete"]
+  # The interactive pod shell POSTs to pods/exec (and pods/attach); port-forward
+  # POSTs to pods/portforward.
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/attach", "pods/portforward"]
+    verbs: ["create", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubagachi-cluster-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubagachi-cluster-read
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: kubagachi-dev-app

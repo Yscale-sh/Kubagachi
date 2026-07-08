@@ -1,0 +1,50 @@
+# Internal IDP contract - not the public Kubernetes install path.
+#
+# This file is for Yscale's unreleased Internal Developer Platform (`idpctl`).
+# It is not a Kubernetes manifest, Helm values file, or supported external
+# deployment path. Most users should install kubagachi with the Helm chart in
+# README.md.
+#
+# This contract currently targets the internal critterforge API used by the
+# project, not the public kubagachi cockpit release.
+#
+# Example internal render:
+#   idpctl render --env dev --root ~/idp -f deploy.yaml --image ghcr.io/yscale-sh/critterforge:<sha7>
+#
+# The service is intentionally lightweight: generated PNG bytes are returned as
+# base64, while job state is durable when REDIS_URL is set via the platform
+# cache integration.
+app: critterforge
+component: api
+
+runtime:
+  image: ghcr.io/yscale-sh/critterforge
+  port: 8080
+  cache: redis
+
+sizing:
+  profile: minimal
+  # replicas > 1 requires cache: redis so all pods share the same job queue.
+  replicas: 3
+  autoscale:
+    enabled: false
+    # Intended production scaling: KEDA on queue depth (critterforge:v1:jobs).
+
+probes:
+  path: /healthz
+
+secrets:
+  - GEMINI_API_KEY
+  - FORGE_TOKEN
+
+env:
+  PORT: "8080"
+  GEN_CONCURRENCY: "4"
+
+build:
+  dockerfile: Dockerfile.critterforged
+
+logging:
+  enabled: true
+metrics:
+  enabled: false

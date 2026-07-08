@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubagachi.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubagachi.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  # Single instance: the informer cache is per-pod, so avoid rolling two live at
+  # once fighting over the same watch budget.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "kubagachi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubagachi.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if and (eq .Values.mode "kubeconfig") (not .Values.kubeconfig.existingSecret) }}
+        checksum/kubeconfig: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "kubagachi.serviceAccountName" . }}
+      automountServiceAccountToken: {{ include "kubagachi.automountToken" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: kubagachi
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: PORT
+              value: "{{ .Values.service.targetPort }}"
+            # readOnlyRootFilesystem is on; point HOME at the writable /tmp
+            # emptyDir so the entrypoint's kubeconfig and kubectl's cache land
+            # somewhere writable.
+            - name: HOME
+              value: /tmp
+            {{- if eq .Values.mode "kubeconfig" }}
+            - name: KUBECONFIG_DATA
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubagachi.kubeconfigSecretName" . }}
+                  key: {{ .Values.kubeconfig.secretKey }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

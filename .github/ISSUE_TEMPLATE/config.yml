@@ -1,0 +1,6 @@
+# Force the templates so every issue carries a human-written section.
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/Yscale-sh/Kubagachi/discussions
+    about: Not a bug or a concrete feature request? Start a discussion instead.

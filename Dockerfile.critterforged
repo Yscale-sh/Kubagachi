@@ -1,0 +1,15 @@
+# Minimal image for the critterforge HTTP generation daemon.
+FROM golang:1.26-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY pkg/ ./pkg/
+COPY cmd/critterforged/ ./cmd/critterforged/
+RUN CGO_ENABLED=0 go build -ldflags='-s -w' -o /out/critterforged ./cmd/critterforged
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates && adduser -D -u 10001 app
+COPY --from=build /out/critterforged /usr/local/bin/critterforged
+USER app
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/critterforged"]
