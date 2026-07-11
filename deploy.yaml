@@ -24,8 +24,8 @@ runtime:
 
 sizing:
   profile: minimal
-  # replicas > 1 requires cache: redis so all pods share the same job queue.
-  replicas: 3
+  # Job state is in-memory until this contract provisions Redis.
+  replicas: 1
   autoscale:
     enabled: false
     # Intended production scaling: KEDA on queue depth (critterforge:v1:jobs).
