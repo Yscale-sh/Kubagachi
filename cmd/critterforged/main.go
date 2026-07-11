@@ -20,6 +20,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -62,6 +63,28 @@ var (
 
 var safeNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$`)
 
+// Modes accepted by POST /v1/generate. An empty mode keeps the original
+// Kubagachi keyed-status sheet behavior.
+const (
+	modeCharacter = "character"
+	modeAsset     = "asset"
+)
+
+// characterFrameCount is the number of animation frames per character strip.
+const characterFrameCount = 4
+
+// Accepted vocabularies for the character and asset modes. Values outside
+// these lists are rejected with a 400 before the job is queued.
+var (
+	characterActions    = []string{"idle", "walk", "run", "jump", "crouch", "attack", "hurt"}
+	characterEmotions   = []string{"neutral", "happy", "sad", "angry", "surprised"}
+	characterDirections = []string{"front", "back", "left", "right"}
+	pixelGridSizes      = []string{"16x16", "32x32", "64x64"}
+	assetCategories     = []string{"props", "environment", "items", "ui"}
+	assetCounts         = []int{4, 8, 16}
+	assetStyles         = []string{"retro", "modern", "fantasy", "sci-fi"}
+)
+
 type jobStatus string
 
 const (
@@ -73,7 +96,9 @@ const (
 
 // generateRequest is the JSON body for POST /v1/generate. Callers must provide
 // name and at least one of description or technology; references are up to
-// three base64 PNG/JPEG images, optionally sent as data URLs.
+// three base64 PNG/JPEG images, optionally sent as data URLs. Mode optionally
+// selects an alternate renderer — "character" (four-frame animation strip) or
+// "asset" (asset grid); when empty the original Kubagachi sheet is generated.
 type generateRequest struct {
 	Name         string   `json:"name"`
 	Description  string   `json:"description,omitempty"`
@@ -83,6 +108,17 @@ type generateRequest struct {
 	Palette      string   `json:"palette,omitempty"`
 	Style        string   `json:"style,omitempty"`
 	Instructions string   `json:"instructions,omitempty"`
+
+	Mode      string `json:"mode,omitempty"`
+	Action    string `json:"action,omitempty"`
+	Emotion   string `json:"emotion,omitempty"`
+	Direction string `json:"direction,omitempty"`
+	FrameSize string `json:"frameSize,omitempty"`
+
+	AssetCategory string `json:"assetCategory,omitempty"`
+	AssetCount    int    `json:"assetCount,omitempty"`
+	AssetSize     string `json:"assetSize,omitempty"`
+	AssetStyle    string `json:"assetStyle,omitempty"`
 
 	referencePNGs [][]byte
 }
@@ -119,6 +155,15 @@ type persistedRequest struct {
 	Palette       string   `json:"palette,omitempty"`
 	Style         string   `json:"style,omitempty"`
 	Instructions  string   `json:"instructions,omitempty"`
+	Mode          string   `json:"mode,omitempty"`
+	Action        string   `json:"action,omitempty"`
+	Emotion       string   `json:"emotion,omitempty"`
+	Direction     string   `json:"direction,omitempty"`
+	FrameSize     string   `json:"frameSize,omitempty"`
+	AssetCategory string   `json:"assetCategory,omitempty"`
+	AssetCount    int      `json:"assetCount,omitempty"`
+	AssetSize     string   `json:"assetSize,omitempty"`
+	AssetStyle    string   `json:"assetStyle,omitempty"`
 	ReferencePNGs [][]byte `json:"referencePngs,omitempty"`
 }
 
@@ -182,6 +227,15 @@ func (r persistedRequest) toGenerateRequest() generateRequest {
 		Palette:       r.Palette,
 		Style:         r.Style,
 		Instructions:  r.Instructions,
+		Mode:          r.Mode,
+		Action:        r.Action,
+		Emotion:       r.Emotion,
+		Direction:     r.Direction,
+		FrameSize:     r.FrameSize,
+		AssetCategory: r.AssetCategory,
+		AssetCount:    r.AssetCount,
+		AssetSize:     r.AssetSize,
+		AssetStyle:    r.AssetStyle,
 		referencePNGs: append([][]byte(nil), r.ReferencePNGs...),
 	}
 }
@@ -196,6 +250,15 @@ func toPersistedRequest(req generateRequest) persistedRequest {
 		Palette:       req.Palette,
 		Style:         req.Style,
 		Instructions:  req.Instructions,
+		Mode:          req.Mode,
+		Action:        req.Action,
+		Emotion:       req.Emotion,
+		Direction:     req.Direction,
+		FrameSize:     req.FrameSize,
+		AssetCategory: req.AssetCategory,
+		AssetCount:    req.AssetCount,
+		AssetSize:     req.AssetSize,
+		AssetStyle:    req.AssetStyle,
 		ReferencePNGs: append([][]byte(nil), req.referencePNGs...),
 	}
 }
@@ -947,6 +1010,17 @@ func readIntEnv(name string, def int) int {
 }
 
 func (s *server) generate(ctx context.Context, jobID string, req generateRequest) (*generateResult, error) {
+	switch req.Mode {
+	case modeCharacter:
+		return s.generateCharacter(ctx, req)
+	case modeAsset:
+		return s.generateAsset(ctx, req)
+	default:
+		return s.generateCritterSheet(ctx, jobID, req)
+	}
+}
+
+func (s *server) generateCritterSheet(ctx context.Context, jobID string, req generateRequest) (*generateResult, error) {
 	outputDir, err := os.MkdirTemp("", "critterforged-"+jobID+"-")
 	if err != nil {
 		return nil, fmt.Errorf("create temp output dir: %w", err)
@@ -1032,6 +1106,203 @@ func manifestFromRequest(req generateRequest) critterforge.InputManifest {
 	}
 }
 
+// generateCharacter renders a four-frame character animation strip with one
+// model call, then normalizes the raw output into the transparent single-row
+// PNG the response promises.
+func (s *server) generateCharacter(ctx context.Context, req generateRequest) (*generateResult, error) {
+	prompt := characterPrompt(req, len(req.referencePNGs) > 0)
+	raw, err := s.model.GenerateSprite(ctx, prompt, req.referencePNGs...)
+	if err != nil {
+		return nil, err
+	}
+	strip, err := critterforge.NormalizeExactGridSheet(raw, characterFrameCount, 1)
+	if err != nil {
+		return nil, fmt.Errorf("normalize character strip: %w", err)
+	}
+	tileWidth, _, _ := strings.Cut(req.FrameSize, "x")
+	tileSize, _ := strconv.Atoi(tileWidth)
+	strip, err = critterforge.ResizeTileSheet(strip, characterFrameCount, 1, tileSize)
+	if err != nil {
+		return nil, fmt.Errorf("size character strip: %w", err)
+	}
+	cfg, err := png.DecodeConfig(bytes.NewReader(strip))
+	if err != nil {
+		return nil, fmt.Errorf("decode character strip: %w", err)
+	}
+	return &generateResult{
+		SpriteSheetPNGBase64: base64.StdEncoding.EncodeToString(strip),
+		States:               sequenceLabels("frame", characterFrameCount),
+		Width:                cfg.Width,
+		Height:               cfg.Height,
+		Meta: map[string]any{
+			"mode":       modeCharacter,
+			"name":       req.Name,
+			"action":     req.Action,
+			"emotion":    req.Emotion,
+			"direction":  req.Direction,
+			"frameSize":  req.FrameSize,
+			"frameCount": characterFrameCount,
+			"style":      req.Style,
+			"provider":   sheetProvider,
+			"model":      s.model.ID(),
+		},
+	}, nil
+}
+
+// generateAsset renders an asset grid with one model call, then normalizes
+// the raw output into a transparent PNG with the exact grid geometry the
+// metadata reports.
+func (s *server) generateAsset(ctx context.Context, req generateRequest) (*generateResult, error) {
+	columns, rows := assetGridDims(req.AssetCount)
+	prompt := assetPrompt(req, columns, rows, len(req.referencePNGs) > 0)
+	raw, err := s.model.GenerateSprite(ctx, prompt, req.referencePNGs...)
+	if err != nil {
+		return nil, err
+	}
+	grid, err := critterforge.NormalizeExactGridSheet(raw, columns, rows)
+	if err != nil {
+		return nil, fmt.Errorf("normalize asset grid: %w", err)
+	}
+	tileWidth, _, _ := strings.Cut(req.AssetSize, "x")
+	tileSize, _ := strconv.Atoi(tileWidth)
+	grid, err = critterforge.ResizeTileSheet(grid, columns, rows, tileSize)
+	if err != nil {
+		return nil, fmt.Errorf("size asset grid: %w", err)
+	}
+	cfg, err := png.DecodeConfig(bytes.NewReader(grid))
+	if err != nil {
+		return nil, fmt.Errorf("decode asset grid: %w", err)
+	}
+	return &generateResult{
+		SpriteSheetPNGBase64: base64.StdEncoding.EncodeToString(grid),
+		States:               sequenceLabels("item", req.AssetCount),
+		Width:                cfg.Width,
+		Height:               cfg.Height,
+		Meta: map[string]any{
+			"mode":          modeAsset,
+			"name":          req.Name,
+			"assetCategory": req.AssetCategory,
+			"assetCount":    req.AssetCount,
+			"assetSize":     req.AssetSize,
+			"assetStyle":    req.AssetStyle,
+			"gridColumns":   columns,
+			"gridRows":      rows,
+			"provider":      sheetProvider,
+			"model":         s.model.ID(),
+		},
+	}, nil
+}
+
+// assetGridDims maps a validated asset count to the grid geometry the prompt
+// demands and the metadata reports: 4 -> 2x2, 8 -> 4x2, 16 -> 4x4.
+func assetGridDims(count int) (columns, rows int) {
+	switch count {
+	case 4:
+		return 2, 2
+	case 8:
+		return 4, 2
+	default:
+		return 4, 4
+	}
+}
+
+// sequenceLabels returns [prefix-1 .. prefix-n], the stable per-tile labels
+// exposed in the result's states field.
+func sequenceLabels(prefix string, n int) []string {
+	labels := make([]string, n)
+	for i := range labels {
+		labels[i] = fmt.Sprintf("%s-%d", prefix, i+1)
+	}
+	return labels
+}
+
+// characterPrompt renders the single-call prompt for a four-frame character
+// animation strip. Fields are already normalized and validated.
+func characterPrompt(req generateRequest, hasRef bool) string {
+	var b strings.Builder
+	if hasRef {
+		b.WriteString("The attached image is the CANONICAL CHARACTER — a finished, crisp pixel-art sprite of this exact character. Every frame in the strip MUST be this same character: identical body, costume, props, colors, palette, and proportions, rendered in the SAME hard-pixel style. Re-pose it per the animation below, but NEVER redesign it, soften it, or change its art style.\n\n")
+	}
+	fmt.Fprintf(&b, "Create a pixel-art character animation strip: the %s animation of this character, seen from the %s, with a %s expression.\n\n", req.Action, req.Direction, req.Emotion)
+	b.WriteString("Character:\n")
+	fmt.Fprintf(&b, "- %s\n", req.Description)
+	if req.Style != "" {
+		fmt.Fprintf(&b, "- style: %s\n", req.Style)
+	}
+	fmt.Fprintf(&b, `
+Layout (follow EXACTLY):
+- exactly 4 frames total
+- single horizontal row, left to right
+- each frame occupies one evenly sized tile of identical dimensions
+- the character is completely contained inside its own tile in every frame — no part may touch or cross a tile edge
+- leave transparent padding around the character in each tile
+
+Animation:
+- frames 1 through 4 read left to right as consecutive phases of the %s action
+- the character faces %s in every frame
+- the face and body language read as %s in every frame
+
+Rendering:
+- transparent background with REAL alpha; no checkerboard, no background scene
+- crisp nearest-neighbor pixel art with hard pixel edges
+- no gradients, no anti-aliasing, no blur
+- no text, no labels, no numbers, no UI frame
+- each frame designed on a %s pixel grid
+- consistent sprite scale, palette, and alignment across all 4 frames
+- the SAME character in every frame; only the pose changes
+
+Output:
+- one single sprite strip PNG
+- transparent background with real alpha
+`, req.Action, req.Direction, req.Emotion, req.FrameSize)
+	if req.Instructions != "" {
+		b.WriteString("\nAdditional instructions:\n- ")
+		b.WriteString(req.Instructions)
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// assetPrompt renders the single-call prompt for an asset grid. Fields are
+// already normalized and validated.
+func assetPrompt(req generateRequest, columns, rows int, hasRef bool) string {
+	var b strings.Builder
+	if hasRef {
+		b.WriteString("The attached image is the CANONICAL STYLE REFERENCE — finished, crisp pixel art. Every asset in the grid MUST match its art style, palette treatment, outline weight, and level of detail exactly. NEVER soften or change that style.\n\n")
+	}
+	fmt.Fprintf(&b, "Create a pixel-art asset sheet of %d distinct %s assets in a %s style.\n\n", req.AssetCount, req.AssetCategory, req.AssetStyle)
+	b.WriteString("Assets:\n")
+	fmt.Fprintf(&b, "- %s\n", req.Description)
+	fmt.Fprintf(&b, `
+Layout (follow EXACTLY):
+- exactly %d assets total
+- a grid of exactly %d columns and %d rows, read left to right, top to bottom
+- each asset occupies one evenly sized cell of identical dimensions
+- every asset is completely contained inside its own cell — no part may touch or cross a cell edge
+- leave transparent padding around each asset in its cell
+- every cell is filled; no empty cells, no duplicate assets
+
+Rendering:
+- transparent background with REAL alpha; no checkerboard, no background scene
+- crisp nearest-neighbor pixel art with hard pixel edges
+- no gradients, no anti-aliasing, no blur
+- no text, no labels, no numbers, no UI frame
+- each asset designed on a %s pixel grid
+- consistent scale, palette, and outline treatment across every asset
+- all assets read together as one coherent %s %s set
+
+Output:
+- one single asset sheet PNG
+- transparent background with real alpha
+`, req.AssetCount, columns, rows, req.AssetSize, req.AssetStyle, req.AssetCategory)
+	if req.Instructions != "" {
+		b.WriteString("\nAdditional instructions:\n- ")
+		b.WriteString(req.Instructions)
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
 func (r *generateRequest) normalize() {
 	r.Name = strings.TrimSpace(r.Name)
 	r.Description = strings.TrimSpace(r.Description)
@@ -1040,8 +1311,47 @@ func (r *generateRequest) normalize() {
 	r.Palette = strings.TrimSpace(r.Palette)
 	r.Style = strings.TrimSpace(r.Style)
 	r.Instructions = strings.TrimSpace(r.Instructions)
+	r.Mode = strings.ToLower(strings.TrimSpace(r.Mode))
+	r.Action = strings.ToLower(strings.TrimSpace(r.Action))
+	r.Emotion = strings.ToLower(strings.TrimSpace(r.Emotion))
+	r.Direction = strings.ToLower(strings.TrimSpace(r.Direction))
+	r.FrameSize = strings.ToLower(strings.TrimSpace(r.FrameSize))
+	r.AssetCategory = strings.ToLower(strings.TrimSpace(r.AssetCategory))
+	r.AssetSize = strings.ToLower(strings.TrimSpace(r.AssetSize))
+	r.AssetStyle = strings.ToLower(strings.TrimSpace(r.AssetStyle))
 	for i := range r.References {
 		r.References[i] = strings.TrimSpace(r.References[i])
+	}
+
+	// Defaults are resolved before the job is persisted so retries and
+	// restarts replay the exact same request.
+	switch r.Mode {
+	case modeCharacter:
+		if r.Action == "" {
+			r.Action = "idle"
+		}
+		if r.Emotion == "" {
+			r.Emotion = "neutral"
+		}
+		if r.Direction == "" {
+			r.Direction = "front"
+		}
+		if r.FrameSize == "" {
+			r.FrameSize = "32x32"
+		}
+	case modeAsset:
+		if r.AssetCategory == "" {
+			r.AssetCategory = "props"
+		}
+		if r.AssetCount == 0 {
+			r.AssetCount = 8
+		}
+		if r.AssetSize == "" {
+			r.AssetSize = "32x32"
+		}
+		if r.AssetStyle == "" {
+			r.AssetStyle = "retro"
+		}
 	}
 }
 
@@ -1052,8 +1362,49 @@ func (r generateRequest) validate() error {
 	if !safeNameRE.MatchString(r.Name) {
 		return errors.New("name must start with a letter or digit and contain only letters, digits, dots, underscores, or dashes")
 	}
-	if r.Description == "" && r.Technology == "" {
-		return errors.New("description or technology is required")
+	switch r.Mode {
+	case "":
+		if r.Action != "" || r.Emotion != "" || r.Direction != "" || r.FrameSize != "" ||
+			r.AssetCategory != "" || r.AssetCount != 0 || r.AssetSize != "" || r.AssetStyle != "" {
+			return errors.New("character and asset fields require mode")
+		}
+		if r.Description == "" && r.Technology == "" {
+			return errors.New("description or technology is required")
+		}
+	case modeCharacter:
+		if r.Description == "" {
+			return errors.New("description is required for character mode")
+		}
+		if !slices.Contains(characterActions, r.Action) {
+			return fmt.Errorf("action must be one of %s", strings.Join(characterActions, ", "))
+		}
+		if !slices.Contains(characterEmotions, r.Emotion) {
+			return fmt.Errorf("emotion must be one of %s", strings.Join(characterEmotions, ", "))
+		}
+		if !slices.Contains(characterDirections, r.Direction) {
+			return fmt.Errorf("direction must be one of %s", strings.Join(characterDirections, ", "))
+		}
+		if !slices.Contains(pixelGridSizes, r.FrameSize) {
+			return fmt.Errorf("frameSize must be one of %s", strings.Join(pixelGridSizes, ", "))
+		}
+	case modeAsset:
+		if r.Description == "" {
+			return errors.New("description is required for asset mode")
+		}
+		if !slices.Contains(assetCategories, r.AssetCategory) {
+			return fmt.Errorf("assetCategory must be one of %s", strings.Join(assetCategories, ", "))
+		}
+		if !slices.Contains(assetCounts, r.AssetCount) {
+			return errors.New("assetCount must be one of 4, 8, 16")
+		}
+		if !slices.Contains(pixelGridSizes, r.AssetSize) {
+			return fmt.Errorf("assetSize must be one of %s", strings.Join(pixelGridSizes, ", "))
+		}
+		if !slices.Contains(assetStyles, r.AssetStyle) {
+			return fmt.Errorf("assetStyle must be one of %s", strings.Join(assetStyles, ", "))
+		}
+	default:
+		return fmt.Errorf("mode must be %q, %q, or omitted", modeCharacter, modeAsset)
 	}
 	return nil
 }

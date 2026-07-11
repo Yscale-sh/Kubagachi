@@ -109,6 +109,125 @@ func TestNormalizeKeyedSheet(t *testing.T) {
 	}
 }
 
+func TestNormalizeGridSheet(t *testing.T) {
+	light := color.RGBA{232, 232, 232, 255}
+	dark := color.RGBA{150, 155, 165, 255}
+	raw := synthSheet(t, 4, 2, light, dark) // 8 blobs in a 4x2 grid
+
+	out, err := NormalizeGridSheet(raw, 4, 2)
+	if err != nil {
+		t.Fatalf("NormalizeGridSheet: %v", err)
+	}
+	img, err := png.Decode(bytes.NewReader(out))
+	if err != nil {
+		t.Fatalf("decode normalized: %v", err)
+	}
+	nrgba, ok := img.(*image.NRGBA)
+	if !ok {
+		t.Fatalf("want *image.NRGBA, got %T", img)
+	}
+	b := nrgba.Bounds()
+	w, h := b.Dx(), b.Dy()
+
+	// Square tiles in a 4x2 grid -> width == 2*height.
+	if w != 2*h {
+		t.Errorf("want 4x2 grid of square tiles (w==2*h); got w=%d h=%d", w, h)
+	}
+	if w%4 != 0 || h%2 != 0 {
+		t.Errorf("dimensions %dx%d do not divide into a 4x2 grid", w, h)
+	}
+
+	// Corner must be fully transparent (checkerboard keyed out).
+	if _, _, _, a := nrgba.At(1, 1).RGBA(); a != 0 {
+		t.Errorf("corner alpha = %d, want 0 (background not keyed)", a>>8)
+	}
+
+	// Each cell's center must be opaque (one blob per cell, bellies intact).
+	tile := w / 4
+	for r := 0; r < 2; r++ {
+		for c := 0; c < 4; c++ {
+			cx := c*tile + tile/2
+			cy := r*tile + tile/2
+			if _, _, _, a := nrgba.At(cx, cy).RGBA(); a == 0 {
+				t.Errorf("cell (%d,%d) center (%d,%d) is transparent", c, r, cx, cy)
+			}
+		}
+	}
+}
+
+func TestNormalizeGridSheetRejectsEmptyInput(t *testing.T) {
+	if _, err := NormalizeGridSheet([]byte("not a png"), 2, 2); err == nil {
+		t.Error("undecodable input did not error")
+	}
+	if _, err := NormalizeGridSheet(nil, 0, 2); err == nil {
+		t.Error("invalid grid shape did not error")
+	}
+}
+
+func TestNormalizeExactGridSheetRejectsWrongLayout(t *testing.T) {
+	raw := synthSheet(t, 2, 2, color.RGBA{232, 232, 232, 255}, color.RGBA{150, 155, 165, 255})
+	if _, err := NormalizeExactGridSheet(raw, 4, 1); err == nil {
+		t.Fatal("2x2 output accepted as a 4x1 animation strip")
+	}
+	if _, err := NormalizeExactGridSheet(raw, 4, 2); err == nil {
+		t.Fatal("2x2 output accepted as a 4x2 asset grid")
+	}
+}
+
+func TestNormalizeExactGridSheetAcceptsRequestedLayout(t *testing.T) {
+	raw := synthSheet(t, 4, 2, color.RGBA{232, 232, 232, 255}, color.RGBA{150, 155, 165, 255})
+	out, err := NormalizeExactGridSheet(raw, 4, 2)
+	if err != nil {
+		t.Fatalf("NormalizeExactGridSheet: %v", err)
+	}
+	img, err := png.Decode(bytes.NewReader(out))
+	if err != nil {
+		t.Fatalf("decode normalized exact grid: %v", err)
+	}
+	if got := float64(img.Bounds().Dx()) / float64(img.Bounds().Dy()); got != 2 {
+		t.Fatalf("normalized aspect = %.2f, want 2", got)
+	}
+}
+
+func TestResizeTileSheetUsesExactNearestNeighborCells(t *testing.T) {
+	raw := synthSheet(t, 4, 2, color.RGBA{232, 232, 232, 255}, color.RGBA{150, 155, 165, 255})
+	normalized, err := NormalizeGridSheet(raw, 4, 2)
+	if err != nil {
+		t.Fatalf("NormalizeGridSheet: %v", err)
+	}
+	resized, err := ResizeTileSheet(normalized, 4, 2, 16)
+	if err != nil {
+		t.Fatalf("ResizeTileSheet: %v", err)
+	}
+	img, err := png.Decode(bytes.NewReader(resized))
+	if err != nil {
+		t.Fatalf("decode resized sheet: %v", err)
+	}
+	if got, want := img.Bounds().Dx(), 64; got != want {
+		t.Fatalf("width = %d, want %d", got, want)
+	}
+	if got, want := img.Bounds().Dy(), 32; got != want {
+		t.Fatalf("height = %d, want %d", got, want)
+	}
+	if _, _, _, alpha := img.At(0, 0).RGBA(); alpha != 0 {
+		t.Fatalf("corner alpha = %d, want transparent", alpha)
+	}
+}
+
+func TestResizeTileSheetRejectsInvalidGeometry(t *testing.T) {
+	if _, err := ResizeTileSheet(nil, 0, 1, 16); err == nil {
+		t.Fatal("invalid grid did not error")
+	}
+	img := image.NewNRGBA(image.Rect(0, 0, 7, 5))
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode source: %v", err)
+	}
+	if _, err := ResizeTileSheet(buf.Bytes(), 4, 1, 16); err == nil {
+		t.Fatal("non-divisible source did not error")
+	}
+}
+
 func TestNormalizeKeyedSheetLightChecker(t *testing.T) {
 	// The keyed status sheet uses a lighter checker (~198); confirm the adaptive
 	// keyer handles that brightness too.

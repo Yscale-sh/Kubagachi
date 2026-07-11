@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/color"
 	"image/draw"
 	_ "image/jpeg" // decode Gemini's JPEG output
 	"image/png"
@@ -44,6 +45,191 @@ func NormalizeKeyedSheet(raw []byte, frames int) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, row); err != nil {
 		return nil, fmt.Errorf("encode normalized sheet: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// NormalizeGridSheet is NormalizeKeyedSheet's counterpart for asset grids: it
+// keys out the baked background the same way, then slices the opaque bounding
+// box into an exact columns x rows grid (row-major) and re-lays each cell's
+// content into evenly sized square tiles with transparent padding. Cell
+// positions are preserved — an empty cell stays an empty tile — so item N
+// always lives at grid position N.
+func NormalizeGridSheet(raw []byte, columns, rows int) ([]byte, error) {
+	if columns < 1 || rows < 1 {
+		return nil, fmt.Errorf("normalize grid: invalid grid %dx%d", columns, rows)
+	}
+	src, _, err := image.Decode(bytes.NewReader(raw))
+	if err != nil {
+		return nil, fmt.Errorf("decode raw grid: %w", err)
+	}
+	rgba := toRGBA(src)
+	alpha := buildAlpha(rgba)
+	w := rgba.Bounds().Dx()
+	h := rgba.Bounds().Dy()
+
+	minX, minY, maxX, maxY := w, h, -1, -1
+	for y := 0; y < h; y++ {
+		base := y * w
+		for x := 0; x < w; x++ {
+			if alpha[base+x] > 0 {
+				if x < minX {
+					minX = x
+				}
+				if x > maxX {
+					maxX = x
+				}
+				if y < minY {
+					minY = y
+				}
+				if y > maxY {
+					maxY = y
+				}
+			}
+		}
+	}
+	if maxX < 0 {
+		return nil, fmt.Errorf("normalize grid: no content detected")
+	}
+	bw, bh := maxX+1-minX, maxY+1-minY
+
+	cells := make([]image.Rectangle, 0, columns*rows)
+	for r := 0; r < rows; r++ {
+		ys := minY + bh*r/rows
+		ye := minY + bh*(r+1)/rows
+		for c := 0; c < columns; c++ {
+			xs := minX + bw*c/columns
+			xe := minX + bw*(c+1)/columns
+			cells = append(cells, image.Rect(xs, ys, xe, ye))
+		}
+	}
+	out := reflowToGrid(rgba, alpha, cells, columns, rows)
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, out); err != nil {
+		return nil, fmt.Errorf("encode normalized grid: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// NormalizeExactGridSheet validates that the model honored an explicit grid
+// before normalizing it. Unlike the legacy Kubagachi normalizer, this rejects
+// wrong-layout output rather than manufacturing the requested count by slicing
+// a different composition.
+func NormalizeExactGridSheet(raw []byte, columns, rows int) ([]byte, error) {
+	if columns < 1 || rows < 1 {
+		return nil, fmt.Errorf("normalize exact grid: invalid grid %dx%d", columns, rows)
+	}
+	src, _, err := image.Decode(bytes.NewReader(raw))
+	if err != nil {
+		return nil, fmt.Errorf("decode exact grid: %w", err)
+	}
+	rgba := toRGBA(src)
+	alpha := buildAlpha(rgba)
+	w, h := rgba.Bounds().Dx(), rgba.Bounds().Dy()
+	minX, minY, maxX, maxY := w, h, -1, -1
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			if alpha[y*w+x] == 0 {
+				continue
+			}
+			minX, minY = min(minX, x), min(minY, y)
+			maxX, maxY = max(maxX, x), max(maxY, y)
+		}
+	}
+	if maxX < 0 {
+		return nil, fmt.Errorf("normalize exact grid: no content detected")
+	}
+	bw, bh := maxX+1-minX, maxY+1-minY
+	expectedAspect := float64(columns) / float64(rows)
+	actualAspect := float64(bw) / float64(bh)
+	if actualAspect < expectedAspect*0.6 || actualAspect > expectedAspect*1.67 {
+		return nil, fmt.Errorf("normalize exact grid: content aspect %.2f does not match %dx%d layout", actualAspect, columns, rows)
+	}
+
+	for row := 0; row < rows; row++ {
+		ys, ye := minY+bh*row/rows, minY+bh*(row+1)/rows
+		for column := 0; column < columns; column++ {
+			xs, xe := minX+bw*column/columns, minX+bw*(column+1)/columns
+			opaque := 0
+			for y := ys; y < ye; y++ {
+				for x := xs; x < xe; x++ {
+					if alpha[y*w+x] > 0 {
+						opaque++
+					}
+				}
+			}
+			minimum := max(4, (xe-xs)*(ye-ys)/500)
+			if opaque < minimum {
+				return nil, fmt.Errorf("normalize exact grid: cell %d,%d is empty or incomplete", column, row)
+			}
+		}
+	}
+
+	// Explicit sheets promise transparent gutters. Significant foreground on
+	// an internal divider usually means one large pose was split into cells.
+	for column := 1; column < columns; column++ {
+		x := minX + bw*column/columns
+		touches := 0
+		for y := minY; y <= maxY; y++ {
+			for _, sampleX := range []int{x - 1, x} {
+				if sampleX >= 0 && sampleX < w && alpha[y*w+sampleX] > 0 {
+					touches++
+				}
+			}
+		}
+		if touches > max(2, bh/50) {
+			return nil, fmt.Errorf("normalize exact grid: content crosses vertical divider %d", column)
+		}
+	}
+	for row := 1; row < rows; row++ {
+		y := minY + bh*row/rows
+		touches := 0
+		for x := minX; x <= maxX; x++ {
+			for _, sampleY := range []int{y - 1, y} {
+				if sampleY >= 0 && sampleY < h && alpha[sampleY*w+x] > 0 {
+					touches++
+				}
+			}
+		}
+		if touches > max(2, bw/50) {
+			return nil, fmt.Errorf("normalize exact grid: content crosses horizontal divider %d", row)
+		}
+	}
+	return NormalizeGridSheet(raw, columns, rows)
+}
+
+// ResizeTileSheet resamples an already-normalized tile sheet to exact square
+// cell dimensions using nearest-neighbor sampling so hard pixel edges and
+// alpha are preserved. The source sheet must divide evenly into its grid.
+func ResizeTileSheet(raw []byte, columns, rows, tileSize int) ([]byte, error) {
+	if columns < 1 || rows < 1 || tileSize < 1 {
+		return nil, fmt.Errorf("resize tile sheet: invalid grid %dx%d at %dpx", columns, rows, tileSize)
+	}
+	src, _, err := image.Decode(bytes.NewReader(raw))
+	if err != nil {
+		return nil, fmt.Errorf("decode tile sheet: %w", err)
+	}
+	bounds := src.Bounds()
+	if bounds.Dx()%columns != 0 || bounds.Dy()%rows != 0 {
+		return nil, fmt.Errorf("resize tile sheet: source %dx%d does not divide into %dx%d", bounds.Dx(), bounds.Dy(), columns, rows)
+	}
+	sourceTileW := bounds.Dx() / columns
+	sourceTileH := bounds.Dy() / rows
+	out := image.NewNRGBA(image.Rect(0, 0, columns*tileSize, rows*tileSize))
+	for row := 0; row < rows; row++ {
+		for column := 0; column < columns; column++ {
+			for y := 0; y < tileSize; y++ {
+				sy := bounds.Min.Y + row*sourceTileH + y*sourceTileH/tileSize
+				for x := 0; x < tileSize; x++ {
+					sx := bounds.Min.X + column*sourceTileW + x*sourceTileW/tileSize
+					out.SetNRGBA(column*tileSize+x, row*tileSize+y, color.NRGBAModel.Convert(src.At(sx, sy)).(color.NRGBA))
+				}
+			}
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, out); err != nil {
+		return nil, fmt.Errorf("encode resized tile sheet: %w", err)
 	}
 	return buf.Bytes(), nil
 }
@@ -362,6 +548,85 @@ func runs(mask []bool, minLen int) []span {
 	}
 	if start >= 0 && len(mask)-start > minLen {
 		out = append(out, span{start, len(mask)})
+	}
+	return out
+}
+
+// reflowToGrid tight-crops each cell to its opaque bounds and composes the
+// crops into a columns x rows grid of equal square tiles with transparent
+// padding, each sprite centered in its tile. Unlike reflowToRow, empty cells
+// are kept (as fully transparent tiles) so grid positions stay stable.
+func reflowToGrid(img *image.RGBA, alpha []uint8, cells []image.Rectangle, columns, rows int) *image.NRGBA {
+	w := img.Bounds().Dx()
+	crops := make([]image.Rectangle, len(cells))
+	maxW, maxH := 0, 0
+	for i, f := range cells {
+		minX, minY, maxX, maxY := f.Max.X, f.Max.Y, f.Min.X, f.Min.Y
+		found := false
+		for y := f.Min.Y; y < f.Max.Y; y++ {
+			for x := f.Min.X; x < f.Max.X; x++ {
+				if alpha[y*w+x] > 0 {
+					found = true
+					if x < minX {
+						minX = x
+					}
+					if x > maxX {
+						maxX = x
+					}
+					if y < minY {
+						minY = y
+					}
+					if y > maxY {
+						maxY = y
+					}
+				}
+			}
+		}
+		if !found {
+			continue // crops[i] stays empty
+		}
+		r := image.Rect(minX, minY, maxX+1, maxY+1)
+		crops[i] = r
+		if r.Dx() > maxW {
+			maxW = r.Dx()
+		}
+		if r.Dy() > maxH {
+			maxH = r.Dy()
+		}
+	}
+	if maxW == 0 && maxH == 0 {
+		return image.NewNRGBA(image.Rect(0, 0, 1, 1))
+	}
+
+	cell := maxW
+	if maxH > cell {
+		cell = maxH
+	}
+	pad := cell * 12 / 100
+	tile := cell + pad*2
+	out := image.NewNRGBA(image.Rect(0, 0, tile*columns, tile*rows))
+
+	for i, c := range crops {
+		if c.Empty() {
+			continue
+		}
+		cw, ch := c.Dx(), c.Dy()
+		ox := (i%columns)*tile + (tile-cw)/2
+		oy := (i/columns)*tile + (tile-ch)/2
+		for y := 0; y < ch; y++ {
+			for x := 0; x < cw; x++ {
+				a := alpha[(c.Min.Y+y)*w+(c.Min.X+x)]
+				if a == 0 {
+					continue
+				}
+				so := img.PixOffset(c.Min.X+x, c.Min.Y+y)
+				do := out.PixOffset(ox+x, oy+y)
+				out.Pix[do] = img.Pix[so]
+				out.Pix[do+1] = img.Pix[so+1]
+				out.Pix[do+2] = img.Pix[so+2]
+				out.Pix[do+3] = a
+			}
+		}
 	}
 	return out
 }
