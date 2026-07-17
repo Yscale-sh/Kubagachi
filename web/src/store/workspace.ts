@@ -25,11 +25,13 @@
 import { useSyncExternalStore } from "react";
 import type { AnyResourceKind, Cluster, Pod } from "../lib/types";
 import {
+  applyKubeconfig as applyKubeconfigApi,
   fetchClusterContexts,
   loadCluster,
   selectClusterContext,
   subscribeClusterUpdates,
   type ClusterContextInfo,
+  type KubeconfigRequest,
 } from "../lib/cluster-api";
 
 // ---------------------------------------------------------------------------
@@ -101,6 +103,8 @@ export interface WorkspaceState {
   paletteOpen: boolean;
   /** `?` keybindings help overlay open flag (transient). */
   helpOpen: boolean;
+  /** Settings panel (kubeconfig) overlay open flag (transient). */
+  settingsOpen: boolean;
   /** j/k row cursor for the active table view (transient). */
   selectedRowIndex: number;
   /** Transient action-feedback toasts. */
@@ -276,6 +280,7 @@ function createStore() {
     terminalSession: null,
     paletteOpen: false,
     helpOpen: false,
+    settingsOpen: false,
     selectedRowIndex: 0,
     toasts: [],
     habitatView: persisted.habitatView ?? "grid",
@@ -498,6 +503,25 @@ function createStore() {
     set({ helpOpen: open });
   };
 
+  const setSettingsOpen = (open: boolean): void => {
+    set({ settingsOpen: open });
+  };
+
+  // Plug in a kubeconfig (pasted YAML or a server-side path). On success the
+  // backend has already switched the live cluster; adopt the new context list
+  // and clear the current snapshot so the next tick repaints the new cluster.
+  const applyKubeconfig = async (req: KubeconfigRequest): Promise<void> => {
+    const next = await applyKubeconfigApi(req);
+    set({
+      contexts: next.contexts,
+      selectedContext: next.current || state.selectedContext,
+      cluster: null,
+      selectedResourceUid: null,
+      drawerTab: null,
+    });
+    toast(`Connected to ${next.current || "cluster"}`, "success");
+  };
+
   // ----- Row cursor (j/k navigation) -----
 
   const setSelectedRow = (index: number): void => {
@@ -563,6 +587,8 @@ function createStore() {
       closeTerminal,
       setPaletteOpen,
       setHelpOpen,
+      setSettingsOpen,
+      applyKubeconfig,
       setSelectedRow,
       moveSelectedRow,
       setHabitatView,
@@ -650,6 +676,7 @@ export const usePinnedPodUids = makeHook((s) => s.pinnedPodUids);
 export const useTerminalSession = makeHook((s) => s.terminalSession);
 export const usePaletteOpen = makeHook((s) => s.paletteOpen);
 export const useHelpOpen = makeHook((s) => s.helpOpen);
+export const useSettingsOpen = makeHook((s) => s.settingsOpen);
 export const useSelectedRow = makeHook((s) => s.selectedRowIndex);
 export const useToasts = makeHook((s) => s.toasts);
 export const useHabitatView = makeHook((s) => s.habitatView);

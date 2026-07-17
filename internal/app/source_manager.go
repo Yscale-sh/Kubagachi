@@ -20,6 +20,9 @@ type sourceManager struct {
 	cancel  context.CancelFunc
 	current string
 	gen     uint64
+	// kube is the live kubeconfig source; it starts from cfg and can be swapped
+	// at runtime via setKubeconfig (the web settings panel).
+	kube k8s.KubeconfigSource
 
 	out       chan state.ClusterState
 	closeOnce sync.Once
@@ -27,8 +30,9 @@ type sourceManager struct {
 
 func newSourceManager(ctx context.Context, cfg Config) (*sourceManager, <-chan state.ClusterState, error) {
 	m := &sourceManager{
-		cfg: cfg,
-		out: make(chan state.ClusterState, 8),
+		cfg:  cfg,
+		kube: k8s.KubeconfigSource{Path: cfg.KubeconfigPath, Raw: cfg.KubeconfigRaw},
+		out:  make(chan state.ClusterState, 8),
 	}
 	if err := m.selectContext(ctx, cfg.Context); err != nil {
 		return nil, nil, err
@@ -68,7 +72,7 @@ func (m *sourceManager) contexts() (k8s.ContextList, error) {
 			}},
 		}, nil
 	}
-	list, err := k8s.AvailableContexts()
+	list, err := k8s.AvailableContexts(m.kubeSource())
 	if err != nil {
 		return k8s.ContextList{}, err
 	}
@@ -80,6 +84,14 @@ func (m *sourceManager) contexts() (k8s.ContextList, error) {
 	return list, nil
 }
 
+// kubeSource returns a snapshot of the live kubeconfig source. Callers must not
+// already hold m.mu (it takes a read lock).
+func (m *sourceManager) kubeSource() k8s.KubeconfigSource {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.kube
+}
+
 func (m *sourceManager) selectContext(ctx context.Context, name string) error {
 	if m.cfg.Demo {
 		if name != "" && name != demoContextName {
@@ -87,7 +99,7 @@ func (m *sourceManager) selectContext(ctx context.Context, name string) error {
 		}
 		name = demoContextName
 	} else {
-		list, err := k8s.AvailableContexts()
+		list, err := k8s.AvailableContexts(m.kubeSource())
 		if err != nil {
 			return err
 		}
@@ -130,8 +142,41 @@ func (m *sourceManager) selectContext(ctx context.Context, name string) error {
 	return nil
 }
 
+// setKubeconfig swaps the live kubeconfig source (a pasted config or an explicit
+// file path) and switches to its current-context. It validates that the config
+// parses and exposes at least one context before touching the live source, and
+// rolls back if connecting to the new cluster fails — so a bad config leaves the
+// running cockpit untouched. A successful swap also leaves demo mode.
+func (m *sourceManager) setKubeconfig(ctx context.Context, src k8s.KubeconfigSource) (k8s.ContextList, error) {
+	list, err := k8s.AvailableContexts(src)
+	if err != nil {
+		return k8s.ContextList{}, err
+	}
+	if len(list.Contexts) == 0 {
+		return k8s.ContextList{}, fmt.Errorf("kubeconfig has no contexts")
+	}
+
+	m.mu.Lock()
+	prevKube, prevDemo, prevCurrent := m.kube, m.cfg.Demo, m.current
+	m.kube = src
+	m.cfg.Demo = false // a plugged-in kubeconfig means we go live
+	m.current = ""     // force a fresh switch to the new config's current-context
+	m.mu.Unlock()
+
+	if err := m.selectContext(ctx, ""); err != nil {
+		m.mu.Lock()
+		m.kube, m.cfg.Demo, m.current = prevKube, prevDemo, prevCurrent
+		m.mu.Unlock()
+		return k8s.ContextList{}, err
+	}
+	return m.contexts()
+}
+
 func (m *sourceManager) start(ctx context.Context, name string) (ClusterSource, context.CancelFunc, <-chan state.ClusterState, string, error) {
+	// Callers hold m.mu, so read m.kube directly rather than via kubeSource().
 	cfg := m.cfg
+	cfg.KubeconfigPath = m.kube.Path
+	cfg.KubeconfigRaw = m.kube.Raw
 	if !cfg.Demo {
 		cfg.Context = name
 	}

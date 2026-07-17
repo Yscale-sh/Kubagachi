@@ -18,6 +18,7 @@ import HotbarDock from "./components/HotbarDock";
 import TerminalDock from "./components/TerminalDock";
 import CommandPalette from "./components/CommandPalette";
 import KeybindingsHelp from "./components/KeybindingsHelp";
+import SettingsPanel from "./components/SettingsPanel";
 import KeyboardLayer from "./components/KeyboardLayer";
 import Toasts from "./components/Toasts";
 import { useActiveTab, useSidebarState, useTabs, workspaceActions } from "./store/workspace";
@@ -65,6 +66,7 @@ export default function App() {
       <TerminalDock />
       <CommandPalette />
       <KeybindingsHelp />
+      <SettingsPanel />
       <Toasts />
       <KeyboardLayer />
     </div>

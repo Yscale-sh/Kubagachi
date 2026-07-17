@@ -1486,6 +1486,27 @@ export async function selectClusterContext(name: string): Promise<ClusterContext
   return (await resp.json()) as ClusterContextList;
 }
 
+/** Plug in a kubeconfig — pasted YAML ("raw") or a server-side file path. */
+export type KubeconfigRequest =
+  | { mode: "raw"; raw: string }
+  | { mode: "path"; path: string };
+
+export async function applyKubeconfig(req: KubeconfigRequest): Promise<ClusterContextList> {
+  const resp = await fetch("/api/kubeconfig", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+  if (!resp.ok) {
+    const message = (await resp.text()).trim() || `apply kubeconfig failed (${resp.status})`;
+    throw new Error(message);
+  }
+  return (await resp.json()) as ClusterContextList;
+}
+
 // ---------------------------------------------------------------------------
 // Yscale burst-fleet API
 // ---------------------------------------------------------------------------
