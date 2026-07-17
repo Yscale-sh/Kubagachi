@@ -315,6 +315,10 @@ func MapJob(j *batchv1.Job) state.JobView {
 		Status:    "active",
 		Age:       humanizeAge(j.CreationTimestamp.Time),
 	}
+	if len(j.OwnerReferences) > 0 {
+		jv.OwnerKind = j.OwnerReferences[0].Kind
+		jv.OwnerName = j.OwnerReferences[0].Name
+	}
 	if j.Spec.Completions != nil {
 		jv.Completions = *j.Spec.Completions
 	}

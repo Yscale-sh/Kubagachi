@@ -197,6 +197,8 @@ interface ServerJob {
   image?: string;
   durationSec?: number;
   ageSec?: number;
+  ownerKind?: string;
+  ownerName?: string;
 }
 
 interface ServerCronJob {
@@ -871,6 +873,8 @@ function toJob(j: ServerJob): Job {
     status,
     image: j.image ?? "—",
     durationSec: j.durationSec || undefined,
+    ownerKind: j.ownerKind || undefined,
+    ownerName: j.ownerName || undefined,
   };
 }
 
