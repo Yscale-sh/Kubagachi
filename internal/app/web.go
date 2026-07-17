@@ -146,6 +146,8 @@ type webJob struct {
 	Image       string `json:"image"`
 	DurationSec int    `json:"durationSec,omitempty"`
 	AgeSec      int    `json:"ageSec"`
+	OwnerKind   string `json:"ownerKind,omitempty"`
+	OwnerName   string `json:"ownerName,omitempty"`
 }
 
 type webCronJob struct {
@@ -649,6 +651,7 @@ func toWebSnapshot(cs state.ClusterState, mode string) webSnapshot {
 			Completions: int(j.Completions), Succeeded: int(j.Succeeded),
 			Failed: int(j.Failed), Active: int(j.Active), Status: j.Status,
 			Image: j.Image, DurationSec: int(j.DurationSec), AgeSec: int(j.AgeSeconds),
+			OwnerKind: j.OwnerKind, OwnerName: j.OwnerName,
 		})
 	}
 	for _, c := range cs.CronJobs {

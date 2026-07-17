@@ -71,3 +71,31 @@ func TestMapJobStatus(t *testing.T) {
 		})
 	}
 }
+
+// TestMapJobOwner verifies the controller reference (a CronJob for scheduled
+// runs) is carried through so the UI can tell a superseded old run from the
+// current one when deriving cluster health.
+func TestMapJobOwner(t *testing.T) {
+	t.Run("cronjob-owned run carries the owner", func(t *testing.T) {
+		j := &batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "volume-29736780",
+				Namespace: "default",
+				OwnerReferences: []metav1.OwnerReference{
+					{Kind: "CronJob", Name: "volume"},
+				},
+			},
+		}
+		jv := MapJob(j)
+		if jv.OwnerKind != "CronJob" || jv.OwnerName != "volume" {
+			t.Fatalf("owner = %q/%q, want CronJob/volume", jv.OwnerKind, jv.OwnerName)
+		}
+	})
+
+	t.Run("standalone job has no owner", func(t *testing.T) {
+		jv := MapJob(&batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: "migrate", Namespace: "default"}})
+		if jv.OwnerKind != "" || jv.OwnerName != "" {
+			t.Fatalf("owner = %q/%q, want empty", jv.OwnerKind, jv.OwnerName)
+		}
+	})
+}

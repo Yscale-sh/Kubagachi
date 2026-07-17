@@ -131,6 +131,9 @@ export interface Job extends BaseMeta {
   status: JobStatus;
   image: string;
   durationSec?: number;
+  /** Controller that created this Job — "CronJob" for scheduled runs. */
+  ownerKind?: string;
+  ownerName?: string;
 }
 
 export type CronJobStatus = "active" | "suspended";

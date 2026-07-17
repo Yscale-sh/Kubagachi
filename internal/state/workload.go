@@ -76,6 +76,11 @@ type JobView struct {
 	DurationSec int64
 	Age         string
 	AgeSeconds  int64
+	// OwnerKind/OwnerName carry the controller that created this Job — a CronJob
+	// for scheduled runs — so the UI can tell a superseded old run from the
+	// current one when deriving cluster health.
+	OwnerKind string
+	OwnerName string
 }
 
 // Key returns a stable unique identifier for the job.

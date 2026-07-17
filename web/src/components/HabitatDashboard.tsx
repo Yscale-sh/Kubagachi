@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Cluster, Event as ClusterEvent, Node, Pod, PodStatus } from "../lib/types";
+import type { Cluster, Event as ClusterEvent, Job, Node, Pod, PodStatus } from "../lib/types";
 import { formatAge, formatBytes, formatCPU, humanStatus } from "../lib/format";
 import {
   useCluster,
@@ -968,6 +968,29 @@ const MOOD_STYLE: Record<MoodTier, { color: string; label: string; glow: string;
   critical: { color: "#ff6767", label: "CRITICAL", glow: "rgba(255, 103, 103, 0.18)", glow2: "rgba(224, 123, 154, 0.10)" },
 };
 
+// supersededCronRunJobNames returns the names of Jobs that are an OLD run of a
+// CronJob — one for which a strictly newer run (smaller ageSec) of the same
+// CronJob exists. Their pods are history from a past tick; the CronJob's most
+// recent run, and any standalone Job, are judged on their own. Ties (same
+// ageSec) keep both live, erring toward surfacing a failure rather than hiding it.
+function supersededCronRunJobNames(jobs: Job[]): Set<string> {
+  const newestAge = new Map<string, number>();
+  for (const j of jobs) {
+    if (j.ownerKind === "CronJob" && j.ownerName) {
+      const cur = newestAge.get(j.ownerName);
+      if (cur === undefined || j.ageSec < cur) newestAge.set(j.ownerName, j.ageSec);
+    }
+  }
+  const superseded = new Set<string>();
+  for (const j of jobs) {
+    if (j.ownerKind === "CronJob" && j.ownerName) {
+      const newest = newestAge.get(j.ownerName);
+      if (newest !== undefined && j.ageSec > newest) superseded.add(j.name);
+    }
+  }
+  return superseded;
+}
+
 function deriveMood(cluster: Cluster | null): Mood | null {
   if (!cluster) return null;
   const pods = cluster.pods;
@@ -976,17 +999,32 @@ function deriveMood(cluster: Cluster | null): Mood | null {
   const healthy = (counts.running ?? 0) + (counts.completed ?? 0);
   const healthRatio = total > 0 ? healthy / total : 1;
 
-  const acute = (counts.crashloop ?? 0) + (counts.error ?? 0);
+  // Run-aware batch history: a terminal Error pod is only "history" when its
+  // owning Job is a CronJob run that a NEWER run has already superseded — an old
+  // cron tick, not a current event. The latest run of a CronJob (and any
+  // standalone Job) still counts, so a currently-failing schedule is never
+  // hidden. Long-running controllers restart pods into crashloop, never terminal
+  // Error, so this only ever reclassifies finished batch pods; the failure stays
+  // visible on the Job itself and in the pod list.
+  const supersededJobs = supersededCronRunJobNames(cluster.jobs);
+  const isBatchHistory = (p: Pod): boolean =>
+    p.status === "error" && p.ownerName != null && supersededJobs.has(p.ownerName);
+  const liveErrors = pods.filter((p) => p.status === "error" && !isBatchHistory(p)).length;
+
+  const acute = (counts.crashloop ?? 0) + liveErrors;
   const tier: MoodTier =
     acute > 0 ? "critical" : (counts.backoff ?? 0) > 0 || healthRatio < 0.75 ? "warn" : "thriving";
 
   const worstBad = SEVERITY.find(
-    (s) => s !== "running" && s !== "completed" && (counts[s] ?? 0) > 0,
+    (s) =>
+      s !== "running" && s !== "completed" && pods.some((p) => p.status === s && !isBatchHistory(p)),
   );
   const unhealthyColor = worstBad ? STATUS_COLOR[worstBad] : "#1c1c1c";
 
   // Champion = the worst-health pod if any is unwell, else the busiest runner.
-  let champion: Pod | null = worstBad ? pods.find((p) => p.status === worstBad) ?? null : null;
+  let champion: Pod | null = worstBad
+    ? pods.find((p) => p.status === worstBad && !isBatchHistory(p)) ?? null
+    : null;
   if (!champion) {
     champion =
       pods
