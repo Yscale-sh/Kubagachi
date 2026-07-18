@@ -96,7 +96,7 @@ drop straight into the prompt pipeline.
 - **scanning** — flashlight crawling a shelf of film reels; TMDB posters fade in.
 - **sharding** *(signature — the disk-splitting you wanted, done right)* — slices a long
   film strip into numbered ~4s segments with a clapperboard-cutter and **flings the chunks**
-  to a row of worker bins (the Redis queue `yscale:cq:ready`). Temporal sharding as dealing
+  to a row of worker bins (a shared work queue). Temporal sharding as dealing
   cards — *not* physical disk striping (which it doesn't do).
 - **encoding** — feeds a segment into a GPU grinder; smaller frames pop out; heat glow
   (green NVENC / blue VAAPI), rising util bar.
