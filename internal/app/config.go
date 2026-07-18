@@ -14,6 +14,13 @@ type Config struct {
 	AllNamespaces bool   // watch every namespace
 	Demo          bool   // use fake data instead of a real cluster
 	Context       string // kubeconfig context override ("" == current-context)
+
+	// KubeconfigPath is an explicit kubeconfig file ("" == default loading
+	// rules). KubeconfigRaw is inline kubeconfig YAML and, when set, wins over
+	// the path and default rules — it is populated at runtime by the web UI's
+	// settings panel, never from a flag.
+	KubeconfigPath string
+	KubeconfigRaw  string
 	PixelCritters string // path to a critterforge-generated critters dir; empty = auto-load if present
 	ASCII         bool   // force the built-in ASCII critters (skip pixel auto-load)
 	Web           bool   // serve the browser UI instead of the terminal UI
@@ -40,6 +47,7 @@ func ParseConfig(args []string) (Config, error) {
 	fs.BoolVar(&c.AllNamespaces, "A", false, "show pods across all namespaces (shorthand)")
 	fs.BoolVar(&c.Demo, "demo", false, "run with fake cluster data (no Kubernetes needed)")
 	fs.StringVar(&c.Context, "context", "", "kubeconfig context to use (defaults to current-context)")
+	fs.StringVar(&c.KubeconfigPath, "kubeconfig", "", "explicit kubeconfig file (defaults to KUBECONFIG / ~/.kube/config)")
 	fs.StringVar(&c.PixelCritters, "pixel-critters", "", "directory of critterforge-generated PNGs (auto-loaded from ./critters if present)")
 	fs.BoolVar(&c.ASCII, "ascii", false, "force built-in ASCII critters instead of pixel sprites")
 	fs.BoolVar(&c.Web, "web", false, "serve a browser UI instead of the terminal UI")

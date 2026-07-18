@@ -47,7 +47,8 @@ type clusterSource struct {
 // newClusterSource connects to the cluster up front so connection errors are
 // reported before the TUI takes over the terminal.
 func newClusterSource(cfg Config) (*clusterSource, error) {
-	client, err := k8s.NewClient(cfg.Context)
+	src := k8s.KubeconfigSource{Path: cfg.KubeconfigPath, Raw: cfg.KubeconfigRaw}
+	client, err := k8s.NewClient(src, cfg.Context)
 	if err != nil {
 		return nil, err
 	}

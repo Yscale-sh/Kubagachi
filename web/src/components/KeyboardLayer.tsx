@@ -20,6 +20,7 @@ import {
   useActiveTab,
   useHelpOpen,
   usePaletteOpen,
+  useSettingsOpen,
   useSelectedRow,
   useSelection,
   useTabs,
@@ -41,6 +42,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export default function KeyboardLayer() {
   const paletteOpen = usePaletteOpen();
   const helpOpen = useHelpOpen();
+  const settingsOpen = useSettingsOpen();
   const selection = useSelection();
   const selectedRow = useSelectedRow();
   const tabs = useTabs();
@@ -50,6 +52,8 @@ export default function KeyboardLayer() {
     const onKey = (e: KeyboardEvent): void => {
       if (e.defaultPrevented) return;
       if (isTypingTarget(e.target)) return;
+      // The settings overlay owns the keyboard while open (Escape handled there).
+      if (settingsOpen) return;
 
       if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && (e.key === "[" || e.key === "]")) {
         e.preventDefault();
@@ -151,7 +155,7 @@ export default function KeyboardLayer() {
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [paletteOpen, helpOpen, selection, selectedRow, tabs, activeTabId]);
+  }, [paletteOpen, helpOpen, settingsOpen, selection, selectedRow, tabs, activeTabId]);
 
   return null;
 }

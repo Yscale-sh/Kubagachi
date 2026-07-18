@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
+  HelpCircle,
   Menu,
   Pin,
   PinOff,
@@ -243,8 +244,18 @@ export default function TopBar() {
         <button
           type="button"
           aria-label="Keybindings & help"
-          title="Keybindings & help"
+          title="Keybindings & help  (?)"
           onClick={() => workspaceActions.setHelpOpen(true)}
+          className="inline-flex items-center justify-center h-7 w-7 hover:bg-bg-panel2 text-text-muted hover:text-accent transition-colors duration-100 k9s-square"
+        >
+          <HelpCircle size={14} />
+        </button>
+
+        <button
+          type="button"
+          aria-label="Settings"
+          title="Settings — plug in a kubeconfig"
+          onClick={() => workspaceActions.setSettingsOpen(true)}
           className="inline-flex items-center justify-center h-7 w-7 hover:bg-bg-panel2 text-text-muted hover:text-accent transition-colors duration-100 k9s-square"
         >
           <Settings size={14} />

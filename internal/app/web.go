@@ -1063,6 +1063,50 @@ func registerAPI(ctx context.Context, mux *http.ServeMux, hub *snapshotHub, sour
 		writeJSON(w, toWebContexts(contexts))
 	})
 
+	mux.HandleFunc("/api/kubeconfig", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", http.StatusMethodNotAllowed)
+			return
+		}
+		if manager == nil {
+			http.Error(w, "kubeconfig switching unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		var req struct {
+			Mode string `json:"mode"`
+			Path string `json:"path"`
+			Raw  string `json:"raw"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		var src k8s.KubeconfigSource
+		switch req.Mode {
+		case "raw":
+			if strings.TrimSpace(req.Raw) == "" {
+				http.Error(w, "raw kubeconfig is required", http.StatusBadRequest)
+				return
+			}
+			src = k8s.KubeconfigSource{Raw: req.Raw}
+		case "path":
+			if strings.TrimSpace(req.Path) == "" {
+				http.Error(w, "kubeconfig path is required", http.StatusBadRequest)
+				return
+			}
+			src = k8s.KubeconfigSource{Path: req.Path}
+		default:
+			http.Error(w, `mode must be "raw" or "path"`, http.StatusBadRequest)
+			return
+		}
+		contexts, err := manager.setKubeconfig(ctx, src)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		writeJSON(w, toWebContexts(contexts))
+	})
+
 	// SSE: one snapshot per cluster change plus a heartbeat comment.
 	mux.HandleFunc("/api/stream", func(w http.ResponseWriter, r *http.Request) {
 		fl, ok := w.(http.Flusher)
